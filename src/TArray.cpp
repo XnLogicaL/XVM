@@ -20,17 +20,17 @@ Array::Array(Array&& other)
     capacity(other.capacity),
     csize(other.csize) {
     other.capacity = 0;
-    other.data     = NULL;
-    other.csize    = {};
+    other.data = NULL;
+    other.csize = {};
 }
 
 Array& Array::operator=(const Array& other) {
     if (this != &other) {
         delete[] data;
 
-        data     = new Value[capacity];
+        data = new Value[capacity];
         capacity = other.capacity;
-        csize    = other.csize;
+        csize = other.csize;
 
         for (size_t i = 0; i < capacity; i++) {
             data[i] = other.data[i].clone();
@@ -44,13 +44,13 @@ Array& Array::operator=(Array&& other) {
     if (this != &other) {
         delete[] data;
 
-        data     = other.data;
+        data = other.data;
         capacity = other.capacity;
-        csize    = other.csize;
+        csize = other.csize;
 
         other.capacity = 0;
-        other.csize    = {};
-        other.data     = NULL;
+        other.csize = {};
+        other.data = NULL;
     }
 
     return *this;
@@ -64,15 +64,15 @@ Array::~Array() {
 }
 
 size_t Array::size() const {
-    return impl::__array_size(this);
+    return impl::__getArraySize(this);
 }
 
 Value& Array::get(size_t position) {
-    return *impl::__array_get(this, position);
+    return *impl::__getArrayField(this, position);
 }
 
 void Array::set(size_t position, Value&& value) {
-    impl::__array_set(this, position, std::move(value));
+    impl::__setArrayField(this, position, std::move(value));
 }
 
 } // namespace xvm

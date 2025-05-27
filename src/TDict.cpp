@@ -66,15 +66,15 @@ Dict::~Dict() {
 }
 
 size_t Dict::size() const {
-    return impl::__dict_size(this);
+    return impl::__getDictSize(this);
 }
 
 Value& Dict::get(const char* key) {
-    return *impl::__dict_get(this, key);
+    return *impl::__getDictField(this, key);
 }
 
 void Dict::set(const char* key, Value value) {
-    impl::__dict_set(this, key, std::move(value));
+    impl::__setDictField(this, key, std::move(value));
 }
 
 } // namespace xvm

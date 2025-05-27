@@ -33,33 +33,31 @@ namespace xvm {
 namespace impl {
 
 constexpr inline register_t BACKEND_REGS_START = REGISTER_COUNT - 1024;
-constexpr inline register_t BACKEND_REGS_END   = REGISTER_COUNT - 1;
+constexpr inline register_t BACKEND_REGS_END = REGISTER_COUNT - 1;
 
-const InstructionData& __pcdata(const State* state, const Instruction* const pc);
+const InstructionData& __getAddressData(const State* state, const Instruction* const pc);
 
-std::string __funcsig(const Callable& func);
-
-std::string __nativeid(NativeFn fn);
+std::string __getFuncSig(const Callable& func);
 
 /**
  * @brief Sets the interpreter into an error state with a given message.
  * @param state Interpreter state.
  * @param message The error message.
  */
-void __error_set(const State* state, const std::string& message);
+void __setError(const State* state, const std::string& message);
 
 /**
  * @brief Clears any existing error state in the interpreter.
  * @param state Interpreter state.
  */
-void __error_clear(const State* state);
+void __clearError(const State* state);
 
 /**
  * @brief Checks whether the interpreter is currently in an error state.
  * @param state Interpreter state.
  * @return true if an error is currently set; false otherwise.
  */
-bool __has_error(const State* state);
+bool __hasError(const State* state);
 
 /**
  * @brief Handles a currently active error by unwinding the call stack.
@@ -67,7 +65,7 @@ bool __has_error(const State* state);
  * @param state Interpreter state.
  * @return true if the error was successfully handled; false otherwise.
  */
-bool __handle_error(State* state);
+bool __handleError(State* state);
 
 /**
  * @brief Retrieves a constant value from the constant pool.
@@ -75,7 +73,7 @@ bool __handle_error(State* state);
  * @param index Index of the constant.
  * @return The constant value.
  */
-Value __get_constant(const State* state, size_t index);
+Value __getK(const State* state, size_t index);
 
 /**
  * @brief Returns the type of a value as a xvm string object.
@@ -89,34 +87,34 @@ Value __type(const Value& val);
  * @param val The value to inspect.
  * @return Type as std::string.
  */
-std::string __type_cxx(const Value& val);
+std::string __typeCxx(const Value& val);
 
 /**
  * @brief Gets the raw pointer stored in a value, or NULL if not applicable.
  * @param val The value to inspect.
  * @return The underlying pointer.
  */
-void* __to_pointer(const Value& val);
+void* __toPtr(const Value& val);
 
 /**
  * @brief Returns the current call frame on the stack.
  * @param state Interpreter state.
  * @return Pointer to the current call frame.
  */
-CallFrame* __current_callframe(State* state);
+CallFrame* __callframe(State* state);
 
 /**
  * @brief Pushes a new call frame onto the call stack.
  * @param state Interpreter state.
  * @param frame Call frame to push.
  */
-void __push_callframe(State* state, CallFrame&& frame);
+void __pushCallframe(State* state, CallFrame&& frame);
 
 /**
  * @brief Pops the topmost call frame from the stack.
  * @param state Interpreter state.
  */
-void __pop_callframe(State* state);
+void __popCallframe(State* state);
 
 /**
  * @brief Calls a function using a dynamic dispatch system.
@@ -160,7 +158,7 @@ Value __length(const Value& val);
  * @param val The value to get the length of.
  * @return int Length or -1 on failure.
  */
-int __length_cxx(const Value& val);
+int __lengthCxx(const Value& val);
 
 /**
  * @brief Converts the given value to a language-level String object.
@@ -170,17 +168,17 @@ int __length_cxx(const Value& val);
  * @param val The value to convert.
  * @return Value The value as a String object.
  */
-Value __to_string(const Value& val);
+Value __toString(const Value& val);
 
 /**
  * @brief Converts the given value to a C++ `std::string`.
  *
- * Performs the same logic as `__to_string`, but returns a native string.
+ * Performs the same logic as `__toString`, but returns a native string.
  *
  * @param val The value to convert.
  * @return std::string The stringified value.
  */
-std::string __to_cxx_string(const Value& val);
+std::string toCxxString(const Value& val);
 
 /**
  * @brief Converts the value to a literal string without applying any escaping or transformation.
@@ -190,7 +188,7 @@ std::string __to_cxx_string(const Value& val);
  * @param val The value to convert.
  * @return std::string The raw literal string.
  */
-std::string __to_literal_cxx_string(const Value& val);
+std::string __toLitCxxString(const Value& val);
 
 /**
  * @brief Converts a value to its boolean representation.
@@ -202,17 +200,17 @@ std::string __to_literal_cxx_string(const Value& val);
  * @param val The value to evaluate.
  * @return Value A boolean Value representing the truthiness.
  */
-Value __to_bool(const Value& val);
+Value __toBool(const Value& val);
 
 /**
  * @brief Returns the truthiness of a value as a native `bool`.
  *
- * Same logic as `__to_bool`, but returns a C++ boolean.
+ * Same logic as `__toBool`, but returns a C++ boolean.
  *
  * @param val The value to evaluate.
  * @return bool True if value is truthy, false otherwise.
  */
-bool __to_cxx_bool(const Value& val);
+bool __toCxxBool(const Value& val);
 
 /**
  * @brief Converts the given value to an integer Value or returns Nil if not possible.
@@ -223,7 +221,7 @@ bool __to_cxx_bool(const Value& val);
  * @param val The value to convert.
  * @return Value Integer Value or Nil.
  */
-Value __to_int(const State* V, const Value& val);
+Value __toInt(const State* V, const Value& val);
 
 /**
  * @brief Converts the given value to a floating-point Value or returns Nil if not possible.
@@ -234,7 +232,7 @@ Value __to_int(const State* V, const Value& val);
  * @param val The value to convert.
  * @return Value Float Value or Nil.
  */
-Value __to_float(const State* V, const Value& val);
+Value __toFloat(const State* V, const Value& val);
 
 /**
  * @brief Deeply compares two values for equality.
@@ -256,25 +254,25 @@ bool __compare(const Value& val0, const Value& val1);
  * @param val1 Second value.
  * @return bool True if values are deeply equal, false otherwise.
  */
-bool __compare_deep(const Value& val0, const Value& val1);
+bool __compareDeep(const Value& val0, const Value& val1);
 
 // Automatically resizes UpValue vector of closure by XVM_UPV_RESIZE_FACTOR.
-void __closure_upvs_resize(Closure* closure);
+void __resizeClosureUpvs(Closure* closure);
 
 // Checks if a given index is within the bounds of the UpValue vector of the closure.
 // Used for resizing.
-bool __closure_upvs_range_check(Closure* closure, size_t index);
+bool __rangeCheckClosureUpvs(Closure* closure, size_t index);
 
 // Attempts to retrieve UpValue at index <upv_id>.
 // Returns NULL if <upv_id> is out of UpValue vector bounds.
-UpValue* __closure_upv_get(Closure* closure, size_t upv_id);
+UpValue* __getClosureUpv(Closure* closure, size_t upv_id);
 
 /**
  * @brief Resizes the UpValue vector of the given closure.
  * @note The vector is grown by a constant `XVM_UPV_RESIZE_FACTOR`.
  * @param closure Pointer to the closure.
  */
-void __closure_upvs_resize(Closure* closure);
+void __resizeClosureUpvs(Closure* closure);
 
 /**
  * @brief Checks if the given index is within bounds of the closure's UpValue vector.
@@ -283,7 +281,7 @@ void __closure_upvs_resize(Closure* closure);
  * @param index Index to validate.
  * @return bool True if within range, false otherwise.
  */
-bool __closure_upvs_range_check(Closure* closure, size_t index);
+bool __rangeCheckClosureUpvs(Closure* closure, size_t index);
 
 /**
  * @brief Gets the UpValue at the specified index.
@@ -292,7 +290,7 @@ bool __closure_upvs_range_check(Closure* closure, size_t index);
  * @param upv_id Index of the UpValue.
  * @return UpValue* Pointer to UpValue or NULL if out of bounds.
  */
-UpValue* __closure_upv_get(Closure* closure, size_t upv_id);
+UpValue* __getClosureUpv(Closure* closure, size_t upv_id);
 
 /**
  * @brief Sets the UpValue at the specified index to a given value.
@@ -301,7 +299,7 @@ UpValue* __closure_upv_get(Closure* closure, size_t upv_id);
  * @param upv_id Index of the UpValue.
  * @param val Value to set.
  */
-void __closure_upv_set(Closure* closure, size_t upv_id, Value& val);
+void __setClosureUpv(Closure* closure, size_t upv_id, Value& val);
 
 /**
  * @brief Loads bytecode instructions into the closure.
@@ -312,7 +310,7 @@ void __closure_upv_set(Closure* closure, size_t upv_id, Value& val);
  * @param closure Target closure.
  * @param len Length of bytecode stream.
  */
-void __closure_init(State* state, Closure* closure, size_t len);
+void __initClosure(State* state, Closure* closure, size_t len);
 
 /**
  * @brief Closes the closure’s upvalues and moves them to the heap.
@@ -321,7 +319,7 @@ void __closure_init(State* state, Closure* closure, size_t len);
  *
  * @param closure The closure whose upvalues to close.
  */
-void __closure_close_upvalues(const Closure* closure);
+void __closeClosureUpvs(const Closure* closure);
 
 /**
  * @brief Hashes a key string using FNV-1a.
@@ -330,7 +328,7 @@ void __closure_close_upvalues(const Closure* closure);
  * @param key Null-terminated string key.
  * @return size_t Hash value.
  */
-size_t __dict_hash_key(const Dict* dict, const char* key);
+size_t __hashDictKey(const Dict* dict, const char* key);
 
 /**
  * @brief Sets a key-value pair in the dictionary.
@@ -341,7 +339,7 @@ size_t __dict_hash_key(const Dict* dict, const char* key);
  * @param key Null-terminated key.
  * @param val Value to insert.
  */
-void __dict_set(const Dict* dict, const char* key, Value val);
+void __setDictField(const Dict* dict, const char* key, Value val);
 
 /**
  * @brief Retrieves the value associated with a key.
@@ -350,7 +348,7 @@ void __dict_set(const Dict* dict, const char* key, Value val);
  * @param key Null-terminated key string.
  * @return Value* Pointer to value or NULL if key not found.
  */
-Value* __dict_get(const Dict* dict, const char* key);
+Value* __getDictField(const Dict* dict, const char* key);
 
 /**
  * @brief Returns number of entries in the dictionary.
@@ -358,7 +356,7 @@ Value* __dict_get(const Dict* dict, const char* key);
  * @param dict Pointer to dictionary.
  * @return size_t Number of key-value pairs.
  */
-size_t __dict_size(const Dict* dict);
+size_t __getDictSize(const Dict* dict);
 
 /**
  * @brief Checks if an index is valid in the array.
@@ -367,7 +365,7 @@ size_t __dict_size(const Dict* dict);
  * @param index Index to check.
  * @return bool True if valid, false otherwise.
  */
-bool __array_range_check(const Array* array, size_t index);
+bool __rangeCheckArray(const Array* array, size_t index);
 
 /**
  * @brief Resizes the array component of the table.
@@ -376,7 +374,7 @@ bool __array_range_check(const Array* array, size_t index);
  *
  * @param array Pointer to array.
  */
-void __array_resize(Array* array);
+void __resizeArray(Array* array);
 
 /**
  * @brief Sets a value at a specific index in the array.
@@ -387,7 +385,7 @@ void __array_resize(Array* array);
  * @param index Index to assign.
  * @param val Value to assign.
  */
-void __array_set(Array* array, size_t index, Value val);
+void __setArrayField(Array* array, size_t index, Value val);
 
 /**
  * @brief Retrieves a value at a specific index.
@@ -396,7 +394,7 @@ void __array_set(Array* array, size_t index, Value val);
  * @param index Index to read.
  * @return Value* Pointer to value or NULL if out of bounds.
  */
-Value* __array_get(const Array* array, size_t index);
+Value* __getArrayField(const Array* array, size_t index);
 
 /**
  * @brief Returns the current size (number of used elements) of the array.
@@ -404,7 +402,7 @@ Value* __array_get(const Array* array, size_t index);
  * @param array Pointer to array.
  * @return size_t Array size.
  */
-size_t __array_size(const Array* array);
+size_t __getArraySize(const Array* array);
 
 /**
  * @brief Allocates space for a set number of labels in the state.
@@ -412,14 +410,14 @@ size_t __array_size(const Array* array);
  * @param state The runtime state.
  * @param count Number of labels to allocate.
  */
-void __label_allocate(State* state, size_t count);
+void __initLabelAddressTable(State* state, size_t count);
 
 /**
  * @brief Deallocates label memory in the given state.
  *
  * @param state The runtime state.
  */
-void __label_deallocate(State* state);
+void __deinitLabelAddressTable(State* state);
 
 /**
  * @brief Returns a pointer to a label instruction by index.
@@ -428,14 +426,14 @@ void __label_deallocate(State* state);
  * @param index Index of label.
  * @return Instruction* Pointer to instruction or NULL.
  */
-Instruction* __label_get(const State* state, size_t index);
+Instruction* __getLabelAddress(const State* state, size_t index);
 
 /**
  * @brief Loads the label instruction table into the state.
  *
  * @param state The runtime state.
  */
-void __label_load(const State* state);
+void __linearScanLabelsInBytecode(const State* state);
 
 /**
  * @brief Pushes a value onto the VM stack.
@@ -459,7 +457,7 @@ void __drop(State* state);
  * @param offset Stack frame offset.
  * @return Value* Pointer to local value.
  */
-Value* __get_local(State* XVM_RESTRICT state, size_t offset);
+Value* __getLocal(State* XVM_RESTRICT state, size_t offset);
 
 /**
  * @brief Sets a local variable at a given offset.
@@ -468,21 +466,21 @@ Value* __get_local(State* XVM_RESTRICT state, size_t offset);
  * @param offset Stack frame offset.
  * @param val Value to set.
  */
-void __set_local(State* XVM_RESTRICT state, size_t offset, Value&& val);
+void __setLocal(State* XVM_RESTRICT state, size_t offset, Value&& val);
 
 /**
  * @brief Allocates the VM register table.
  *
  * @param state The runtime state.
  */
-void __register_allocate(State* state);
+void __initRegisterFile(State* state);
 
 /**
  * @brief Frees the register table.
  *
  * @param state The runtime state.
  */
-void __register_deallocate(const State* state);
+void __deinitRegisterFile(const State* state);
 
 /**
  * @brief Assigns a value to a register.
@@ -491,7 +489,7 @@ void __register_deallocate(const State* state);
  * @param reg Register index.
  * @param val Value to assign.
  */
-void __set_register(const State* state, uint16_t reg, Value&& val);
+void __setRegister(const State* state, uint16_t reg, Value&& val);
 
 /**
  * @brief Retrieves a value from a register.
@@ -500,19 +498,19 @@ void __set_register(const State* state, uint16_t reg, Value&& val);
  * @param reg Register index.
  * @return Value* Pointer to register value.
  */
-Value* __get_register(const State* state, uint16_t reg);
+Value* __getRegister(const State* state, uint16_t reg);
 
 /**
  * @brief Creates the main function closure for a compilation unit.
  * @return Pointer to main closure.
  */
-Closure* __create_main_function();
+Closure* __initMainFunction();
 
 /**
  * @brief Declares the built-in core library into the interpreter state.
  * @param state Interpreter state.
  */
-void __declare_core_lib(State* state);
+void __initCoreInterpLib(State* state);
 
 } // namespace impl
 

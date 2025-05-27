@@ -125,19 +125,19 @@ XVM_NODISCARD bool Value::compare(const Value& other) const {
 }
 
 XVM_NODISCARD bool Value::deep_compare(const Value& other) const {
-    return impl::__compare_deep(*this, other);
+    return impl::__compareDeep(*this, other);
 }
 
 XVM_NODISCARD Value Value::to_string() const {
-    return impl::__to_string(*this);
+    return impl::__toString(*this);
 }
 
 XVM_NODISCARD std::string Value::to_cxx_string() const {
-    return impl::__to_cxx_string(*this);
+    return impl::toCxxString(*this);
 }
 
 XVM_NODISCARD std::string Value::to_literal_cxx_string() const {
-    return impl::__to_literal_cxx_string(*this);
+    return impl::__toLitCxxString(*this);
 }
 
 } // namespace xvm

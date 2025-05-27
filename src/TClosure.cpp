@@ -14,7 +14,7 @@ Closure::Closure(const Closure& other)
     upvs(new UpValue[other.upv_count]),
     upv_count(other.upv_count) {
     // UpValues captured twice; close them.
-    impl::__closure_close_upvalues(&other);
+    impl::__closeClosureUpvs(&other);
 
     for (size_t i = 0; i < upv_count; i++) {
         UpValue& upv = this->upvs[i];
@@ -42,7 +42,7 @@ Closure& Closure::operator=(const Closure& other) {
         this->upv_count = other.upv_count;
 
         // UpValues captured twice; close them.
-        impl::__closure_close_upvalues(&other);
+        impl::__closeClosureUpvs(&other);
 
         for (size_t i = 0; i < upv_count; i++) {
             UpValue& upv = this->upvs[i];
