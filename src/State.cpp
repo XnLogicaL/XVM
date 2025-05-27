@@ -14,7 +14,7 @@ State::State(StkRegFile& stk_registers)
     callstack(new CallStack),
     err(new ErrorState),
     main(Value(__initMainFunction())),
-    stack_registers(stk_registers) {
+    stkRegs(stk_registers) {
     __initRegisterFile(this);
     __initLabelAddressTable(this, 0 /* TODO */);
     __call(this, main.u.clsr);

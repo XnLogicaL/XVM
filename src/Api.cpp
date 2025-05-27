@@ -9,11 +9,11 @@ namespace xvm {
 
 using enum ValueKind;
 
-Value& State::get_register(uint16_t reg) {
+Value& State::getRegister(uint16_t reg) {
     return *impl::__getRegister(this, reg);
 }
 
-void State::set_register(uint16_t reg, Value val) {
+void State::setRegister(uint16_t reg, Value val) {
     impl::__setRegister(this, reg, std::move(val));
 }
 
@@ -34,7 +34,7 @@ size_t State::stack_size() {
     return current_callframe->capacity;
 }
 
-Value& State::get_global(const char* name) {
+Value& State::getGlobal(const char* name) {
     return globals->get(name);
 }
 

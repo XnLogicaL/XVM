@@ -20,6 +20,8 @@
 #pragma warning(disable : 26495)
 #endif
 
+#define XVM_NIL Value()
+
 /**
  * @namespace xvm
  * @ingroup xvm_namespace

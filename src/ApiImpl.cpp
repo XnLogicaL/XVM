@@ -99,7 +99,7 @@ bool __handleError(State* state) {
 
 Value __getK(const State* state, size_t index) {
     // TODO
-    return Value();
+    return XVM_NIL;
 }
 
 Value __type(const Value& val) {
@@ -206,7 +206,7 @@ Value __length(Value& val) {
         return Value(static_cast<int>(len));
     }
 
-    return Value();
+    return XVM_NIL;
 }
 
 int __lengthCxx(Value& val) {
@@ -257,7 +257,7 @@ Value __toString(const Value& val) {
     }
 
     XVM_UNREACHABLE();
-    return Value();
+    return XVM_NIL;
 }
 
 std::string toCxxString(const Value& val) {
@@ -295,7 +295,7 @@ Value __toInt(const State* V, const Value& val) {
     case String: {
         const std::string& str = val.u.str->data;
         if (str.empty()) {
-            return Value();
+            return XVM_NIL;
         }
 
         int int_result;
@@ -305,7 +305,7 @@ Value __toInt(const State* V, const Value& val) {
         }
 
         __setError(V, "Failed to cast String into Int");
-        return Value();
+        return XVM_NIL;
     }
     case Bool:
         return Value(static_cast<int>(val.u.b));
@@ -315,7 +315,7 @@ Value __toInt(const State* V, const Value& val) {
 
     auto type = toCxxString(val);
     __setError(V, std::format("Failed to cast {} into Int", type));
-    return Value();
+    return XVM_NIL;
 }
 
 Value __toFloat(const State* V, const Value& val) {
@@ -329,7 +329,7 @@ Value __toFloat(const State* V, const Value& val) {
     case String: {
         const std::string& str = val.u.str->data;
         if (str.empty()) {
-            return Value();
+            return XVM_NIL;
         }
 
         float float_result;
@@ -339,7 +339,7 @@ Value __toFloat(const State* V, const Value& val) {
         }
 
         __setError(V, "Failed to cast string to float");
-        return Value();
+        return XVM_NIL;
     }
     case Bool:
         return Value(static_cast<float>(val.u.b));
@@ -349,7 +349,7 @@ Value __toFloat(const State* V, const Value& val) {
 
     auto type = __type_cxx_string(val);
     __setError(V, std::format("Failed to cast {} to float", type));
-    return Value();
+    return XVM_NIL;
 }
 
 bool __compare(const Value& val0, const Value& val1) {
@@ -424,7 +424,7 @@ bool __compareDeep(const Value& val0, const Value& val1) {
 
 // Automatically resizes UpValue vector of closure by XVM_UPV_RESIZE_FACTOR.
 void __resizeClosureUpvs(Closure* closure) {
-    uint32_t current_size = closure->upv_count;
+    uint32_t current_size = closure->count;
     uint32_t new_size = current_size == 0 ? 8 : (current_size * 2);
     UpValue* new_location = new UpValue[new_size];
 
@@ -440,13 +440,13 @@ void __resizeClosureUpvs(Closure* closure) {
 
     // Update closure
     closure->upvs = new_location;
-    closure->upv_count = new_size;
+    closure->count = new_size;
 }
 
 // Checks if a given index is within the bounds of the UpValue vector of the closure.
 // Used for resizing.
 bool __rangeCheckClosureUpvs(Closure* closure, size_t index) {
-    return closure->upv_count >= index;
+    return closure->count >= index;
 }
 
 // Attempts to retrieve UpValue at index <upv_id>.
@@ -489,8 +489,8 @@ static void handleCapture(State* state, Closure* closure, size_t* upvalues) {
     else { // Upvalue is captured twice; automatically close it.
         UpValue* upv = &frame->closure->upvs[idx];
         if (upv->valid && upv->open) {
-            upv->heap_value = upv->value->clone();
-            upv->value = &upv->heap_value;
+            upv->heap = upv->value->clone();
+            upv->value = &upv->heap;
             upv->open = false;
         }
         value = upv->value;
@@ -500,7 +500,7 @@ static void handleCapture(State* state, Closure* closure, size_t* upvalues) {
       .open = true,
       .valid = true,
       .value = value,
-      .heap_value = Value(),
+      .heap = XVM_NIL,
     };
 }
 
@@ -516,8 +516,8 @@ void __initClosure(State* state, Closure* closure, size_t len) {
 }
 
 static void closeUpvalue(UpValue* upv) {
-    upv->heap_value = upv->value->clone();
-    upv->value = &upv->heap_value;
+    upv->heap = upv->value->clone();
+    upv->value = &upv->heap;
     upv->open = false;
 }
 
@@ -528,7 +528,7 @@ void __closeClosureUpvs(const Closure* closure) {
         return;
     }
 
-    for (UpValue* upv = closure->upvs; upv < closure->upvs + closure->upv_count; upv++) {
+    for (UpValue* upv = closure->upvs; upv < closure->upvs + closure->count; upv++) {
         if (upv->valid && upv->open) {
             closeUpvalue(upv);
         }
@@ -710,30 +710,30 @@ void __setLocal(State* XVM_RESTRICT state, size_t offset, Value&& val) {
 // ==========================================================
 // Register handling
 void __initRegisterFile(State* state) {
-    state->spill_registers = new SpillRegFile();
+    state->heapRegs = new SpillRegFile();
 }
 
 void __deinitRegisterFile(const State* state) {
-    delete state->spill_registers;
+    delete state->heapRegs;
 }
 
 void __setRegister(const State* state, uint16_t reg, Value&& val) {
-    if XVM_LIKELY (reg < REGISTER_STACK_COUNT) {
-        state->stack_registers.registers[reg] = std::move(val);
+    if XVM_LIKELY (reg < kStkRegCount) {
+        state->stkRegs.registers[reg] = std::move(val);
     }
     else {
-        const uint16_t offset = reg - REGISTER_STACK_COUNT;
-        state->spill_registers->registers[offset] = std::move(val);
+        const uint16_t offset = reg - kStkRegCount;
+        state->heapRegs->registers[offset] = std::move(val);
     }
 }
 
 Value* __getRegister(const State* state, uint16_t reg) {
     if XVM_LIKELY ((reg & 0xFF) == reg) {
-        return &state->stack_registers.registers[reg];
+        return &state->stkRegs.registers[reg];
     }
     else {
-        const uint16_t offset = reg - REGISTER_STACK_COUNT;
-        return &state->spill_registers->registers[offset];
+        const uint16_t offset = reg - kStkRegCount;
+        return &state->heapRegs->registers[offset];
     }
 }
 
@@ -773,13 +773,13 @@ void __initCoreInterpLib(State* state) {
     static NativeFn core_print = [](State* state) -> Value {
         Value* arg0 = __getRegister(state, state->args);
         std::cout << arg0->to_cxx_string() << "\n";
-        return Value();
+        return XVM_NIL;
     };
 
     static NativeFn core_error = [](State* state) -> Value {
         Value* arg0 = __getRegister(state, state->args);
         __setError(state, arg0->to_cxx_string());
-        return Value();
+        return XVM_NIL;
     };
 
     declareCoreFunction(state, "print", core_print, 1);

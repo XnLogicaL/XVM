@@ -587,7 +587,7 @@ dispatch:
         VM_CASE(LOADNIL) {
             uint16_t dst = state->pc->a;
 
-            __setRegister(state, dst, Value());
+            __setRegister(state, dst, XVM_NIL);
             VM_NEXT();
         }
 
@@ -701,7 +701,7 @@ dispatch:
         }
 
         VM_CASE(PUSHNIL) {
-            __push(state, Value());
+            __push(state, XVM_NIL);
             VM_NEXT();
         }
 
@@ -1520,7 +1520,7 @@ dispatch:
 
         VM_CASE(RETNIL) {
             __closeClosureUpvs(__callframe(state)->closure);
-            __return(state, Value());
+            __return(state, XVM_NIL);
 
             VM_CHECK_RETURN();
             VM_NEXT();
@@ -1721,7 +1721,7 @@ void State::execute() {
     __execute<false, false>(this);
 }
 
-void State::execute_step(std::optional<Instruction> insn) {
+void State::executeStep(std::optional<Instruction> insn) {
     if (insn.has_value()) {
         __execute<true, true>(this, *insn);
     }

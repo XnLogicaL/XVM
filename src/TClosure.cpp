@@ -11,16 +11,16 @@ Closure::Closure(Callable&& callable)
 
 Closure::Closure(const Closure& other)
   : callee(other.callee),
-    upvs(new UpValue[other.upv_count]),
-    upv_count(other.upv_count) {
+    upvs(new UpValue[other.count]),
+    count(other.count) {
     // UpValues captured twice; close them.
     impl::__closeClosureUpvs(&other);
 
-    for (size_t i = 0; i < upv_count; i++) {
+    for (size_t i = 0; i < count; i++) {
         UpValue& upv = this->upvs[i];
         UpValue& other_upv = other.upvs[i];
-        upv.heap_value = other_upv.heap_value.clone();
-        upv.value = &upv.heap_value;
+        upv.heap = other_upv.heap.clone();
+        upv.value = &upv.heap;
         upv.valid = true;
         upv.open = false;
     }
@@ -29,26 +29,26 @@ Closure::Closure(const Closure& other)
 Closure::Closure(Closure&& other)
   : callee(other.callee),
     upvs(other.upvs),
-    upv_count(other.upv_count) {
+    count(other.count) {
     // Only reset upvalues because they are the only owned values.
     other.upvs = NULL;
-    other.upv_count = 0;
+    other.count = 0;
 }
 
 Closure& Closure::operator=(const Closure& other) {
     if (this != &other) {
         this->callee = other.callee;
-        this->upvs = new UpValue[other.upv_count];
-        this->upv_count = other.upv_count;
+        this->upvs = new UpValue[other.count];
+        this->count = other.count;
 
         // UpValues captured twice; close them.
         impl::__closeClosureUpvs(&other);
 
-        for (size_t i = 0; i < upv_count; i++) {
+        for (size_t i = 0; i < count; i++) {
             UpValue& upv = this->upvs[i];
             UpValue& other_upv = other.upvs[i];
-            upv.heap_value = other_upv.heap_value.clone();
-            upv.value = &upv.heap_value;
+            upv.heap = other_upv.heap.clone();
+            upv.value = &upv.heap;
             upv.valid = true;
             upv.open = false;
         }
@@ -63,18 +63,18 @@ Closure& Closure::operator=(Closure&& other) {
 
         this->callee = other.callee;
         this->upvs = other.upvs;
-        this->upv_count = other.upv_count;
+        this->count = other.count;
         // Only reset upvalues because they are the only owned values.
         other.upvs = NULL;
-        other.upv_count = 0;
+        other.count = 0;
     }
 
     return *this;
 }
 
 Closure::Closure()
-  : upvs(new UpValue[CLOSURE_INITIAL_UPV_COUNT]),
-    upv_count(CLOSURE_INITIAL_UPV_COUNT) {}
+  : upvs(new UpValue[kClosureUpvCount]),
+    count(kClosureUpvCount) {}
 
 Closure::~Closure() {
     delete[] upvs;

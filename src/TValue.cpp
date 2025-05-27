@@ -12,8 +12,7 @@ namespace xvm {
 
 using enum ValueKind;
 
-Value::Value()
-  : type(Nil) {}
+Value::XVM_NIL : type(Nil) {}
 
 Value::Value(bool b)
   : type(Bool),
@@ -66,7 +65,7 @@ Value& Value::operator=(Value&& other) {
     return *this;
 }
 
-Value::~Value() {
+Value::~XVM_NIL {
     reset();
 }
 
@@ -91,7 +90,7 @@ XVM_NODISCARD Value Value::clone() const {
         break;
     }
 
-    return Value();
+    return XVM_NIL;
 }
 
 void Value::reset() {

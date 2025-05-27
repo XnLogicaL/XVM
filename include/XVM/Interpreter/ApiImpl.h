@@ -32,8 +32,8 @@ namespace xvm {
  */
 namespace impl {
 
-constexpr inline register_t BACKEND_REGS_START = REGISTER_COUNT - 1024;
-constexpr inline register_t BACKEND_REGS_END = REGISTER_COUNT - 1;
+constexpr inline register_t BACKEND_REGS_START = kRegCount - 1024;
+constexpr inline register_t BACKEND_REGS_END = kRegCount - 1;
 
 const InstructionData& __getAddressData(const State* state, const Instruction* const pc);
 

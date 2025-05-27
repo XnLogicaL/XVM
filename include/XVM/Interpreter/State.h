@@ -15,8 +15,8 @@
 
 #include <Common.h>
 #include <Interpreter/Callstack.h>
-#include <Interpreter/Instruction.h>
-#include <Interpreter/TValue.h>
+#include <Interpreter/instruction.h>
+#include <Interpreter/tvalue.h>
 
 /**
  * @namespace xvm
@@ -25,23 +25,9 @@
  */
 namespace xvm {
 
-/**
- * @brief Total number of general-purpose registers available.
- * Matches the operand range (2^16).
- */
-inline constexpr size_t REGISTER_COUNT = 0xFFFF + 1;
-
-/**
- * @brief Number of registers reserved for stack-based usage.
- * These are backed by fast C++ stack memory.
- */
-inline constexpr size_t REGISTER_STACK_COUNT = 0x00FF + 1;
-
-/**
- * @brief Number of registers reserved for heap-based spilling.
- * These are allocated separately and used when stack registers are exhausted.
- */
-inline constexpr size_t REGISTER_SPILL_COUNT = REGISTER_COUNT - REGISTER_STACK_COUNT;
+inline constexpr size_t kRegCount = 0xFFFF + 1;    ///< Total amount of addressable registers (2^16)
+inline constexpr size_t kStkRegCount = 0x00FF + 1; ///< Amount of stack registers (2^8)
+inline constexpr size_t kHeapRegCount = kRegCount - kStkRegCount; /// Amount of heap registers
 
 /**
  * @struct ErrorState
@@ -63,10 +49,10 @@ struct alignas(64) RegFile {
 };
 
 /// Type alias for stack-based register block.
-using StkRegFile = RegFile<REGISTER_STACK_COUNT>;
+using StkRegFile = RegFile<kStkRegCount>;
 
 /// Type alias for heap/spill register block.
-using SpillRegFile = RegFile<REGISTER_SPILL_COUNT>;
+using SpillRegFile = RegFile<kHeapRegCount>;
 
 /**
  * @class State
@@ -84,35 +70,34 @@ struct alignas(64) State {
     CallStack*  callstack = NULL; ///< Call stack of function frames.
     ErrorState* err = NULL;       ///< Active/inactive error state.
 
-    Value      main = Value(); ///< Reference to the main function.
+    Value      main = XVM_NIL; ///< Reference to the main function.
     register_t ret = NULL;     ///< Return register index.
     register_t args = NULL;    ///< First argument register index.
 
-    StkRegFile&   stack_registers;        ///< Stack register block.
-    SpillRegFile* spill_registers = NULL; ///< Heap (spill) register block.
+    StkRegFile&   stkRegs;         ///< Stack register block.
+    SpillRegFile* heapRegs = NULL; ///< Heap (spill) register block.
 
     XVM_NOCOPY(State); ///< The state object should not be copied.
     XVM_NOMOVE(State); ///< The state object should not be moved.
 
     /**
      * @brief Constructs a new State.
-     * @param stack_regs Reference to the stack register block.
-     * @param lctx Reference to the translation unit's compilation context.
+     * @param file Reference to the stack register file.
      */
-    explicit State(StkRegFile& stack_regs);
+    explicit State(StkRegFile& file);
     ~State();
 
     /// Begins executing instructions starting at the current program counter (`pc`).
     void execute();
 
     /// Executes a single instruction step. Optionally provide an override instruction.
-    void execute_step(std::optional<Instruction> insn = std::nullopt);
+    void executeStep(std::optional<Instruction> insn = std::nullopt);
 
     /// Returns a mutable reference to the value stored in the given register.
-    Value& get_register(uint16_t reg);
+    Value& getRegister(uint16_t reg);
 
     /// Assigns a value to the given register.
-    void set_register(uint16_t reg, Value value);
+    void setRegister(uint16_t reg, Value value);
 
     /// Pushes a generic value onto the stack.
     void push(Value&& value);
@@ -121,22 +106,19 @@ struct alignas(64) State {
     void drop();
 
     /// Assigns a value to a local variable at the given position.
-    void set_local(size_t position, Value value);
+    void setLocal(size_t position, Value value);
 
     /// Returns a reference to a local value at the given position.
-    Value& get_local(size_t position);
+    Value& getLocal(size_t position);
 
     /// Returns a reference to an argument value relative to the current call frame.
-    Value& get_argument(size_t offset);
-
-    /// Returns the current size of the value stack.
-    size_t stack_size();
+    Value& getArg(size_t offset);
 
     /// Retrieves the global variable with the given name.
-    Value& get_global(const char* name);
+    Value& getGlobal(const char* name);
 
     /// Assigns a value to a global variable with the given name.
-    void set_global(const char* name, const Value& value);
+    void setGlobal(const char* name, const Value& value);
 
     /// Invokes a function closure with a given number of arguments.
     void call(const Closure& callee, size_t argc);
