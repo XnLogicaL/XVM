@@ -49,11 +49,11 @@
 #define VM_DISPATCH_OP(op) &&CASE_##op
 #define VM_DISPATCH_TABLE()                                                                        \
     VM_DISPATCH_OP(NOP), VM_DISPATCH_OP(LBL), VM_DISPATCH_OP(EXIT), VM_DISPATCH_OP(ADD),           \
-      VM_DISPATCH_OP(ADDI), VM_DISPATCH_OP(ADDF), VM_DISPATCH_OP(SUB), VM_DISPATCH_OP(SUBI),       \
-      VM_DISPATCH_OP(SUBF), VM_DISPATCH_OP(MUL), VM_DISPATCH_OP(MULI), VM_DISPATCH_OP(MULF),       \
-      VM_DISPATCH_OP(DIV), VM_DISPATCH_OP(DIVI), VM_DISPATCH_OP(DIVF), VM_DISPATCH_OP(MOD),        \
-      VM_DISPATCH_OP(MODI), VM_DISPATCH_OP(MODF), VM_DISPATCH_OP(POW), VM_DISPATCH_OP(POWI),       \
-      VM_DISPATCH_OP(POWF), VM_DISPATCH_OP(NEG), VM_DISPATCH_OP(MOV), VM_DISPATCH_OP(LOADK),       \
+      VM_DISPATCH_OP(IADD), VM_DISPATCH_OP(FADD), VM_DISPATCH_OP(SUB), VM_DISPATCH_OP(ISUB),       \
+      VM_DISPATCH_OP(FSUB), VM_DISPATCH_OP(MUL), VM_DISPATCH_OP(IMUL), VM_DISPATCH_OP(FMUL),       \
+      VM_DISPATCH_OP(DIV), VM_DISPATCH_OP(IDIV), VM_DISPATCH_OP(FDIV), VM_DISPATCH_OP(MOD),        \
+      VM_DISPATCH_OP(IMOD), VM_DISPATCH_OP(FMOD), VM_DISPATCH_OP(POW), VM_DISPATCH_OP(IPOW),       \
+      VM_DISPATCH_OP(FPOW), VM_DISPATCH_OP(NEG), VM_DISPATCH_OP(MOV), VM_DISPATCH_OP(LOADK),       \
       VM_DISPATCH_OP(LOADNIL), VM_DISPATCH_OP(LOADI), VM_DISPATCH_OP(LOADF),                       \
       VM_DISPATCH_OP(LOADBT), VM_DISPATCH_OP(LOADBF), VM_DISPATCH_OP(LOADARR),                     \
       VM_DISPATCH_OP(LOADDICT), VM_DISPATCH_OP(CLOSURE), VM_DISPATCH_OP(PUSH),                     \
@@ -154,7 +154,7 @@ dispatch:
 
             VM_NEXT();
         }
-        VM_CASE(ADDI) {
+        VM_CASE(IADD) {
             uint16_t ra = state->pc->a;
             uint16_t ib = state->pc->b;
             uint16_t ic = state->pc->c;
@@ -171,7 +171,7 @@ dispatch:
 
             VM_NEXT();
         }
-        VM_CASE(ADDF) {
+        VM_CASE(FADD) {
             uint16_t ra = state->pc->a;
             uint16_t fb = state->pc->b;
             uint16_t fc = state->pc->c;
@@ -216,7 +216,7 @@ dispatch:
 
             VM_NEXT();
         }
-        VM_CASE(SUBI) {
+        VM_CASE(ISUB) {
             uint16_t ra = state->pc->a;
             uint16_t ib = state->pc->b;
             uint16_t ic = state->pc->c;
@@ -233,7 +233,7 @@ dispatch:
 
             VM_NEXT();
         }
-        VM_CASE(SUBF) {
+        VM_CASE(FSUB) {
             uint16_t ra = state->pc->a;
             uint16_t fb = state->pc->b;
             uint16_t fc = state->pc->c;
@@ -278,7 +278,7 @@ dispatch:
 
             VM_NEXT();
         }
-        VM_CASE(MULI) {
+        VM_CASE(IMUL) {
             uint16_t ra = state->pc->a;
             uint16_t ib = state->pc->b;
             uint16_t ic = state->pc->c;
@@ -295,7 +295,7 @@ dispatch:
 
             VM_NEXT();
         }
-        VM_CASE(MULF) {
+        VM_CASE(FMUL) {
             uint16_t ra = state->pc->a;
             uint16_t fb = state->pc->b;
             uint16_t fc = state->pc->c;
@@ -356,7 +356,7 @@ dispatch:
 
             VM_NEXT();
         }
-        VM_CASE(DIVI) {
+        VM_CASE(IDIV) {
             uint16_t ra = state->pc->a;
             uint16_t ib = state->pc->b;
             uint16_t ic = state->pc->c;
@@ -376,7 +376,7 @@ dispatch:
 
             VM_NEXT();
         }
-        VM_CASE(DIVF) {
+        VM_CASE(FDIV) {
             uint16_t ra = state->pc->a;
             uint16_t fb = state->pc->b;
             uint16_t fc = state->pc->c;
@@ -425,7 +425,7 @@ dispatch:
 
             VM_NEXT();
         }
-        VM_CASE(POWI) {
+        VM_CASE(IPOW) {
             uint16_t ra = state->pc->a;
             uint16_t ib = state->pc->b;
             uint16_t ic = state->pc->c;
@@ -442,7 +442,7 @@ dispatch:
 
             VM_NEXT();
         }
-        VM_CASE(POWF) {
+        VM_CASE(FPOW) {
             uint16_t ra = state->pc->a;
             uint16_t fb = state->pc->b;
             uint16_t fc = state->pc->c;
@@ -487,7 +487,7 @@ dispatch:
 
             VM_NEXT();
         }
-        VM_CASE(MODI) {
+        VM_CASE(IMOD) {
             uint16_t ra = state->pc->a;
             uint16_t ib = state->pc->b;
             uint16_t ic = state->pc->c;
@@ -504,7 +504,7 @@ dispatch:
 
             VM_NEXT();
         }
-        VM_CASE(MODF) {
+        VM_CASE(FMOD) {
             uint16_t ra = state->pc->a;
             uint16_t fb = state->pc->b;
             uint16_t fc = state->pc->c;
