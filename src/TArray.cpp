@@ -8,31 +8,31 @@ namespace xvm {
 
 Array::Array(const Array& other)
   : data(new Value[ARRAY_INITAL_CAPACITY]),
-    datacap(other.datacap),
+    capacity(other.capacity),
     csize(other.csize) {
-    for (size_t i = 0; i < datacap; i++) {
+    for (size_t i = 0; i < capacity; i++) {
         data[i] = other.data[i].clone();
     }
 }
 
 Array::Array(Array&& other)
   : data(other.data),
-    datacap(other.datacap),
+    capacity(other.capacity),
     csize(other.csize) {
-    other.datacap = 0;
-    other.data = NULL;
-    other.csize = {};
+    other.capacity = 0;
+    other.data     = NULL;
+    other.csize    = {};
 }
 
 Array& Array::operator=(const Array& other) {
     if (this != &other) {
         delete[] data;
 
-        data = new Value[datacap];
-        datacap = other.datacap;
-        csize = other.csize;
+        data     = new Value[capacity];
+        capacity = other.capacity;
+        csize    = other.csize;
 
-        for (size_t i = 0; i < datacap; i++) {
+        for (size_t i = 0; i < capacity; i++) {
             data[i] = other.data[i].clone();
         }
     }
@@ -44,13 +44,13 @@ Array& Array::operator=(Array&& other) {
     if (this != &other) {
         delete[] data;
 
-        data = other.data;
-        datacap = other.datacap;
-        csize = other.csize;
+        data     = other.data;
+        capacity = other.capacity;
+        csize    = other.csize;
 
-        other.datacap = 0;
-        other.csize = {};
-        other.data = NULL;
+        other.capacity = 0;
+        other.csize    = {};
+        other.data     = NULL;
     }
 
     return *this;

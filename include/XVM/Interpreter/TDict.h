@@ -41,13 +41,13 @@ struct Dict {
      * @brief A single key-value entry within the dictionary hash table.
      */
     struct HNode {
-        const char* key; ///< Null-terminated string key (not owned).
-        Value value;     ///< Corresponding value.
+        const char* key;   ///< Null-terminated string key (not owned).
+        Value       value; ///< Corresponding value.
     };
 
-    HNode* data = NULL;                      ///< Pointer to the hash table buffer.
+    HNode* data     = NULL;                  ///< Pointer to the hash table buffer.
     size_t capacity = DICT_INITIAL_CAPACITY; ///< Total capacity of the table.
-    CSize csize;                             ///< Tracks logical size and handles resizing.
+    CSize  csize    = {};                    ///< Tracks logical size and handles resizing.
 
     XVM_IMPLCOPY(Dict); ///< Enables copy constructor and assignment.
     XVM_IMPLMOVE(Dict); ///< Enables move constructor and assignment.

@@ -8,7 +8,7 @@
 
 #define VM_ERROR(message)                                                                          \
     do {                                                                                           \
-        __set_error_state(state, message);                                                         \
+        __error_set(state, message);                                                               \
         VM_NEXT();                                                                                 \
     } while (0)
 
@@ -32,7 +32,7 @@
     } while (0)
 
 #define VM_CHECK_RETURN()                                                                          \
-    if XVM_UNLIKELY (state->callstack->frames_count == 0) {                                        \
+    if XVM_UNLIKELY (state->callstack->sp == 0) {                                                  \
         goto exit;                                                                                 \
     }
 
@@ -139,7 +139,7 @@ dispatch:
                     lhs->u.i += rhs->u.i;
                 }
                 else if XVM_UNLIKELY (rhs->is_float()) {
-                    lhs->u.f = static_cast<float>(lhs->u.i) + rhs->u.f;
+                    lhs->u.f  = static_cast<float>(lhs->u.i) + rhs->u.f;
                     lhs->type = Float;
                 }
             }
@@ -160,7 +160,7 @@ dispatch:
             uint16_t ic = state->pc->c;
 
             Value* lhs = __get_register(state, ra);
-            int imm = ((uint32_t)ic << 16) | ib;
+            int    imm = ((uint32_t)ic << 16) | ib;
 
             if XVM_LIKELY (lhs->is_int()) {
                 lhs->u.i += imm;
@@ -177,7 +177,7 @@ dispatch:
             uint16_t fc = state->pc->c;
 
             Value* lhs = __get_register(state, ra);
-            float imm = ((uint32_t)fc << 16) | fb;
+            float  imm = ((uint32_t)fc << 16) | fb;
 
             if XVM_LIKELY (lhs->is_int()) {
                 lhs->u.i += imm;
@@ -201,7 +201,7 @@ dispatch:
                     lhs->u.i -= rhs->u.i;
                 }
                 else if XVM_UNLIKELY (rhs->is_float()) {
-                    lhs->u.f = static_cast<float>(lhs->u.i) - rhs->u.f;
+                    lhs->u.f  = static_cast<float>(lhs->u.i) - rhs->u.f;
                     lhs->type = Float;
                 }
             }
@@ -222,7 +222,7 @@ dispatch:
             uint16_t ic = state->pc->c;
 
             Value* lhs = __get_register(state, ra);
-            int imm = ((uint32_t)ic << 16) | ib;
+            int    imm = ((uint32_t)ic << 16) | ib;
 
             if XVM_LIKELY (lhs->is_int()) {
                 lhs->u.i -= imm;
@@ -239,7 +239,7 @@ dispatch:
             uint16_t fc = state->pc->c;
 
             Value* lhs = __get_register(state, ra);
-            float imm = ((uint32_t)fc << 16) | fb;
+            float  imm = ((uint32_t)fc << 16) | fb;
 
             if XVM_LIKELY (lhs->is_int()) {
                 lhs->u.i -= imm;
@@ -263,7 +263,7 @@ dispatch:
                     lhs->u.i *= rhs->u.i;
                 }
                 else if XVM_UNLIKELY (rhs->is_float()) {
-                    lhs->u.f = static_cast<float>(lhs->u.i) * rhs->u.f;
+                    lhs->u.f  = static_cast<float>(lhs->u.i) * rhs->u.f;
                     lhs->type = Float;
                 }
             }
@@ -284,7 +284,7 @@ dispatch:
             uint16_t ic = state->pc->c;
 
             Value* lhs = __get_register(state, ra);
-            int imm = ((uint32_t)ic << 16) | ib;
+            int    imm = ((uint32_t)ic << 16) | ib;
 
             if XVM_LIKELY (lhs->is_int()) {
                 lhs->u.i *= imm;
@@ -301,7 +301,7 @@ dispatch:
             uint16_t fc = state->pc->c;
 
             Value* lhs = __get_register(state, ra);
-            float imm = ((uint32_t)fc << 16) | fb;
+            float  imm = ((uint32_t)fc << 16) | fb;
 
             if XVM_LIKELY (lhs->is_int()) {
                 lhs->u.i *= imm;
@@ -333,7 +333,7 @@ dispatch:
                         VM_ERROR("Division by zero");
                     }
 
-                    lhs->u.f = static_cast<float>(lhs->u.i) / rhs->u.f;
+                    lhs->u.f  = static_cast<float>(lhs->u.i) / rhs->u.f;
                     lhs->type = Float;
                 }
             }
@@ -362,7 +362,7 @@ dispatch:
             uint16_t ic = state->pc->c;
 
             Value* lhs = __get_register(state, ra);
-            int imm = ((uint32_t)ic << 16) | ib;
+            int    imm = ((uint32_t)ic << 16) | ib;
             if (imm == 0) {
                 VM_ERROR("Division by zero");
             }
@@ -410,7 +410,7 @@ dispatch:
                     lhs->u.i = std::pow(lhs->u.i, rhs->u.i);
                 }
                 else if XVM_UNLIKELY (rhs->is_float()) {
-                    lhs->u.f = std::pow(static_cast<float>(lhs->u.i), rhs->u.f);
+                    lhs->u.f  = std::pow(static_cast<float>(lhs->u.i), rhs->u.f);
                     lhs->type = Float;
                 }
             }
@@ -431,7 +431,7 @@ dispatch:
             uint16_t ic = state->pc->c;
 
             Value* lhs = __get_register(state, ra);
-            int imm = ((uint32_t)ic << 16) | ib;
+            int    imm = ((uint32_t)ic << 16) | ib;
 
             if XVM_LIKELY (lhs->is_int()) {
                 lhs->u.i = std::pow(lhs->u.i, imm);
@@ -448,7 +448,7 @@ dispatch:
             uint16_t fc = state->pc->c;
 
             Value* lhs = __get_register(state, ra);
-            float imm = ((uint32_t)fc << 16) | fb;
+            float  imm = ((uint32_t)fc << 16) | fb;
 
             if XVM_LIKELY (lhs->is_int()) {
                 lhs->u.i = std::pow(lhs->u.i, imm);
@@ -472,7 +472,7 @@ dispatch:
                     lhs->u.i %= rhs->u.i;
                 }
                 else if XVM_UNLIKELY (rhs->is_float()) {
-                    lhs->u.f = std::fmod(static_cast<float>(lhs->u.i), rhs->u.f);
+                    lhs->u.f  = std::fmod(static_cast<float>(lhs->u.i), rhs->u.f);
                     lhs->type = Float;
                 }
             }
@@ -493,7 +493,7 @@ dispatch:
             uint16_t ic = state->pc->c;
 
             Value* lhs = __get_register(state, ra);
-            int imm = ((uint32_t)ic << 16) | ib;
+            int    imm = ((uint32_t)ic << 16) | ib;
 
             if XVM_LIKELY (lhs->is_int()) {
                 lhs->u.i = std::fmod(lhs->u.i, imm);
@@ -510,7 +510,7 @@ dispatch:
             uint16_t fc = state->pc->c;
 
             Value* lhs = __get_register(state, ra);
-            float imm = ((uint32_t)fc << 16) | fb;
+            float  imm = ((uint32_t)fc << 16) | fb;
 
             if XVM_LIKELY (lhs->is_int()) {
                 lhs->u.i = std::fmod(lhs->u.i, imm);
@@ -523,8 +523,8 @@ dispatch:
         }
 
         VM_CASE(NEG) {
-            uint16_t dst = state->pc->a;
-            Value* val = __get_register(state, dst);
+            uint16_t  dst  = state->pc->a;
+            Value*    val  = __get_register(state, dst);
             ValueKind type = val->type;
 
             if (type == Int) {
@@ -538,17 +538,17 @@ dispatch:
         }
 
         VM_CASE(MOV) {
-            uint16_t rdst = state->pc->a;
-            uint16_t rsrc = state->pc->b;
-            Value* src_val = __get_register(state, rsrc);
+            uint16_t rdst    = state->pc->a;
+            uint16_t rsrc    = state->pc->b;
+            Value*   src_val = __get_register(state, rsrc);
 
             __set_register(state, rdst, src_val->clone());
             VM_NEXT();
         }
 
         VM_CASE(INC) {
-            uint16_t rdst = state->pc->a;
-            Value* dst_val = __get_register(state, rdst);
+            uint16_t rdst    = state->pc->a;
+            Value*   dst_val = __get_register(state, rdst);
 
             if XVM_LIKELY (dst_val->is_int()) {
                 dst_val->u.i++;
@@ -561,8 +561,8 @@ dispatch:
         }
 
         VM_CASE(DEC) {
-            uint16_t rdst = state->pc->a;
-            Value* dst_val = __get_register(state, rdst);
+            uint16_t rdst    = state->pc->a;
+            Value*   dst_val = __get_register(state, rdst);
 
             if XVM_LIKELY (dst_val->is_int()) {
                 dst_val->u.i--;
@@ -593,7 +593,7 @@ dispatch:
 
         VM_CASE(LOADI) {
             uint16_t dst = state->pc->a;
-            int imm = ((uint32_t)state->pc->b << 16) | state->pc->a;
+            int      imm = ((uint32_t)state->pc->b << 16) | state->pc->a;
 
             __set_register(state, dst, Value(imm));
             VM_NEXT();
@@ -601,7 +601,7 @@ dispatch:
 
         VM_CASE(LOADF) {
             uint16_t dst = state->pc->a;
-            float imm = ((uint32_t)state->pc->b << 16) | state->pc->a;
+            float    imm = ((uint32_t)state->pc->b << 16) | state->pc->a;
 
             __set_register(state, dst, Value(imm));
             VM_NEXT();
@@ -621,7 +621,7 @@ dispatch:
 
         VM_CASE(LOADARR) {
             uint16_t dst = state->pc->a;
-            Value arr(new struct Array());
+            Value    arr(new struct Array());
 
             __set_register(state, dst, std::move(arr));
             VM_NEXT();
@@ -629,19 +629,19 @@ dispatch:
 
         VM_CASE(LOADDICT) {
             uint16_t dst = state->pc->a;
-            Value dict(new struct Dict());
+            Value    dict(new struct Dict());
 
             __set_register(state, dst, std::move(dict));
             VM_NEXT();
         }
 
         VM_CASE(CLOSURE) {
-            uint16_t dst = state->pc->a;
-            uint16_t len = state->pc->b;
+            uint16_t dst  = state->pc->a;
+            uint16_t len  = state->pc->b;
             uint16_t argc = state->pc->c;
 
-            const InstructionData& data = __pcdata(state, state->pc);
-            const std::string& comment = data.comment;
+            const InstructionData& data    = __pcdata(state, state->pc);
+            const std::string&     comment = data.comment;
 
             struct Function f;
             f.code = ++state->pc;
@@ -649,11 +649,11 @@ dispatch:
 
             Callable c;
             c.arity = argc;
-            c.type = CallableKind::Function;
-            c.u = {.fn = std::move(f)};
+            c.type  = CallableKind::Function;
+            c.u     = {.fn = std::move(f)};
 
             Closure* closure = new Closure();
-            closure->callee = std::move(c);
+            closure->callee  = std::move(c);
 
             __closure_init(state, closure, len);
             __set_register(state, dst, Value(closure));
@@ -667,18 +667,18 @@ dispatch:
         }
 
         VM_CASE(GETUPV) {
-            uint16_t dst = state->pc->a;
+            uint16_t dst    = state->pc->a;
             uint16_t upv_id = state->pc->b;
-            UpValue* upv = __closure_upv_get(__current_callframe(state)->closure, upv_id);
+            UpValue* upv    = __closure_upv_get(__current_callframe(state)->closure, upv_id);
 
             __set_register(state, dst, upv->value->clone());
             VM_NEXT();
         }
 
         VM_CASE(SETUPV) {
-            uint16_t src = state->pc->a;
+            uint16_t src    = state->pc->a;
             uint16_t upv_id = state->pc->b;
-            Value* val = __get_register(state, src);
+            Value*   val    = __get_register(state, src);
 
             __closure_upv_set(__current_callframe(state)->closure, upv_id, *val);
             VM_NEXT();
@@ -686,7 +686,7 @@ dispatch:
 
         VM_CASE(PUSH) {
             uint16_t src = state->pc->a;
-            Value* val = __get_register(state, src);
+            Value*   val = __get_register(state, src);
 
             __push(state, std::move(*val));
             VM_NEXT();
@@ -694,7 +694,7 @@ dispatch:
 
         VM_CASE(PUSHK) {
             uint16_t const_idx = state->pc->a;
-            Value constant = __get_constant(state, const_idx);
+            Value    constant  = __get_constant(state, const_idx);
 
             __push(state, std::move(constant));
             VM_NEXT();
@@ -735,7 +735,7 @@ dispatch:
         VM_CASE(GETLOCAL) {
             uint16_t dst = state->pc->a;
             uint16_t off = state->pc->b;
-            Value* val = __get_local(state, off);
+            Value*   val = __get_local(state, off);
 
             __set_register(state, dst, val->clone());
             VM_NEXT();
@@ -744,7 +744,7 @@ dispatch:
         VM_CASE(SETLOCAL) {
             uint16_t src = state->pc->a;
             uint16_t off = state->pc->b;
-            Value* val = __get_register(state, src);
+            Value*   val = __get_register(state, src);
 
             __set_local(state, off, std::move(*val));
             VM_NEXT();
@@ -753,7 +753,7 @@ dispatch:
         VM_CASE(GETARG) {
             uint16_t dst = state->pc->a;
             uint16_t off = state->pc->b;
-            Value* val = __get_register(state, state->args + off);
+            Value*   val = __get_register(state, state->args + off);
 
             __set_register(state, dst, val->clone());
             VM_NEXT();
@@ -763,9 +763,9 @@ dispatch:
             uint16_t dst = state->pc->a;
             uint16_t key = state->pc->b;
 
-            Value* key_obj = __get_register(state, key);
+            Value*         key_obj = __get_register(state, key);
             struct String* key_str = key_obj->u.str;
-            const Value& global = state->globals->get(key_str->data);
+            const Value&   global  = state->globals->get(key_str->data);
 
             __set_register(state, dst, global.clone());
             VM_NEXT();
@@ -775,9 +775,9 @@ dispatch:
             uint16_t src = state->pc->a;
             uint16_t key = state->pc->b;
 
-            Value* key_obj = __get_register(state, key);
+            Value*         key_obj = __get_register(state, key);
             struct String* key_str = key_obj->u.str;
-            Value* global = __get_register(state, src);
+            Value*         global  = __get_register(state, src);
 
             state->globals->set(key_str->data, std::move(*global));
             VM_NEXT();
@@ -860,9 +860,9 @@ dispatch:
             uint16_t rb = state->pc->b;
             uint16_t rc = state->pc->c;
 
-            Value* lhs = __get_register(state, rb);
-            Value* rhs = __get_register(state, rc);
-            bool cond = __to_cxx_bool(*lhs) && __to_cxx_bool(*rhs);
+            Value* lhs  = __get_register(state, rb);
+            Value* rhs  = __get_register(state, rc);
+            bool   cond = __to_cxx_bool(*lhs) && __to_cxx_bool(*rhs);
 
             __set_register(state, ra, Value(cond));
             VM_NEXT();
@@ -873,9 +873,9 @@ dispatch:
             uint16_t rb = state->pc->b;
             uint16_t rc = state->pc->c;
 
-            Value* lhs = __get_register(state, rb);
-            Value* rhs = __get_register(state, rc);
-            bool cond = __to_cxx_bool(*lhs) || __to_cxx_bool(*rhs);
+            Value* lhs  = __get_register(state, rb);
+            Value* rhs  = __get_register(state, rc);
+            bool   cond = __to_cxx_bool(*lhs) || __to_cxx_bool(*rhs);
 
             __set_register(state, ra, Value(cond));
             VM_NEXT();
@@ -885,8 +885,8 @@ dispatch:
             uint16_t ra = state->pc->a;
             uint16_t rb = state->pc->b;
 
-            Value* lhs = __get_register(state, rb);
-            bool cond = !__to_cxx_bool(*lhs);
+            Value* lhs  = __get_register(state, rb);
+            bool   cond = !__to_cxx_bool(*lhs);
 
             __set_register(state, ra, Value(cond));
             VM_NEXT();
@@ -1015,8 +1015,8 @@ dispatch:
         }
 
         VM_CASE(JMPIF) {
-            uint16_t cond = state->pc->a;
-            int16_t offset = state->pc->b;
+            uint16_t cond   = state->pc->a;
+            int16_t  offset = state->pc->b;
 
             Value* cond_val = __get_register(state, cond);
             if (__to_cxx_bool(*cond_val)) {
@@ -1028,8 +1028,8 @@ dispatch:
         }
 
         VM_CASE(JMPIFN) {
-            uint16_t cond = state->pc->a;
-            int16_t offset = state->pc->b;
+            uint16_t cond   = state->pc->a;
+            int16_t  offset = state->pc->b;
 
             Value* cond_val = __get_register(state, cond);
             if (!__to_cxx_bool(*cond_val)) {
@@ -1043,7 +1043,7 @@ dispatch:
         VM_CASE(JMPIFEQ) {
             uint16_t cond_lhs = state->pc->a;
             uint16_t cond_rhs = state->pc->b;
-            int16_t offset = state->pc->c;
+            int16_t  offset   = state->pc->c;
 
             if XVM_UNLIKELY (cond_lhs == cond_rhs) {
                 state->pc += offset;
@@ -1065,7 +1065,7 @@ dispatch:
         VM_CASE(JMPIFNEQ) {
             uint16_t cond_lhs = state->pc->a;
             uint16_t cond_rhs = state->pc->b;
-            int16_t offset = state->pc->c;
+            int16_t  offset   = state->pc->c;
 
             if XVM_LIKELY (cond_lhs != cond_rhs) {
                 state->pc += offset;
@@ -1087,7 +1087,7 @@ dispatch:
         VM_CASE(JMPIFLT) {
             uint16_t cond_lhs = state->pc->a;
             uint16_t cond_rhs = state->pc->b;
-            int16_t offset = state->pc->c;
+            int16_t  offset   = state->pc->c;
 
             Value* lhs = __get_register(state, cond_lhs);
             Value* rhs = __get_register(state, cond_rhs);
@@ -1127,7 +1127,7 @@ dispatch:
         VM_CASE(JMPIFGT) {
             uint16_t cond_lhs = state->pc->a;
             uint16_t cond_rhs = state->pc->b;
-            int16_t offset = state->pc->c;
+            int16_t  offset   = state->pc->c;
 
             Value* lhs = __get_register(state, cond_lhs);
             Value* rhs = __get_register(state, cond_rhs);
@@ -1167,7 +1167,7 @@ dispatch:
         VM_CASE(JMPIFLTEQ) {
             uint16_t cond_lhs = state->pc->a;
             uint16_t cond_rhs = state->pc->b;
-            int16_t offset = state->pc->c;
+            int16_t  offset   = state->pc->c;
 
             Value* lhs = __get_register(state, cond_lhs);
             Value* rhs = __get_register(state, cond_rhs);
@@ -1207,7 +1207,7 @@ dispatch:
         VM_CASE(JMPIFGTEQ) {
             uint16_t cond_lhs = state->pc->a;
             uint16_t cond_rhs = state->pc->b;
-            int16_t offset = state->pc->c;
+            int16_t  offset   = state->pc->c;
 
             Value* lhs = __get_register(state, cond_lhs);
             Value* rhs = __get_register(state, cond_rhs);
@@ -1253,7 +1253,7 @@ dispatch:
         }
 
         VM_CASE(LJMPIF) {
-            uint16_t cond = state->pc->a;
+            uint16_t cond  = state->pc->a;
             uint16_t label = state->pc->b;
 
             Value* cond_val = __get_register(state, cond);
@@ -1266,7 +1266,7 @@ dispatch:
         }
 
         VM_CASE(LJMPIFN) {
-            uint16_t cond = state->pc->a;
+            uint16_t cond  = state->pc->a;
             uint16_t label = state->pc->b;
 
             Value* cond_val = __get_register(state, cond);
@@ -1281,7 +1281,7 @@ dispatch:
         VM_CASE(LJMPIFEQ) {
             uint16_t cond_lhs = state->pc->a;
             uint16_t cond_rhs = state->pc->b;
-            uint16_t label = state->pc->c;
+            uint16_t label    = state->pc->c;
 
             if XVM_UNLIKELY (cond_lhs == cond_rhs) {
                 state->pc = __label_get(state, label);
@@ -1303,7 +1303,7 @@ dispatch:
         VM_CASE(LJMPIFNEQ) {
             uint16_t cond_lhs = state->pc->a;
             uint16_t cond_rhs = state->pc->b;
-            uint16_t label = state->pc->c;
+            uint16_t label    = state->pc->c;
 
             if XVM_LIKELY (cond_lhs != cond_rhs) {
                 state->pc = __label_get(state, label);
@@ -1325,7 +1325,7 @@ dispatch:
         VM_CASE(LJMPIFLT) {
             uint16_t cond_lhs = state->pc->a;
             uint16_t cond_rhs = state->pc->b;
-            uint16_t label = state->pc->c;
+            uint16_t label    = state->pc->c;
 
             Value* lhs = __get_register(state, cond_lhs);
             Value* rhs = __get_register(state, cond_rhs);
@@ -1365,7 +1365,7 @@ dispatch:
         VM_CASE(LJMPIFGT) {
             uint16_t cond_lhs = state->pc->a;
             uint16_t cond_rhs = state->pc->b;
-            uint16_t label = state->pc->c;
+            uint16_t label    = state->pc->c;
 
             Value* lhs = __get_register(state, cond_lhs);
             Value* rhs = __get_register(state, cond_rhs);
@@ -1405,7 +1405,7 @@ dispatch:
         VM_CASE(LJMPIFLTEQ) {
             uint16_t cond_lhs = state->pc->a;
             uint16_t cond_rhs = state->pc->b;
-            uint16_t label = state->pc->c;
+            uint16_t label    = state->pc->c;
 
             Value* lhs = __get_register(state, cond_lhs);
             Value* rhs = __get_register(state, cond_rhs);
@@ -1445,7 +1445,7 @@ dispatch:
         VM_CASE(LJMPIFGTEQ) {
             uint16_t cond_lhs = state->pc->a;
             uint16_t cond_rhs = state->pc->b;
-            uint16_t label = state->pc->c;
+            uint16_t label    = state->pc->c;
 
             Value* lhs = __get_register(state, cond_lhs);
             Value* rhs = __get_register(state, cond_rhs);
@@ -1490,7 +1490,7 @@ dispatch:
             Value* fn_val = __get_register(state, fn);
 
             state->args = ap;
-            state->ret = rr;
+            state->ret  = rr;
 
             __call(state, fn_val->u.clsr);
 
@@ -1508,7 +1508,7 @@ dispatch:
             Value* fn_val = __get_register(state, fn);
 
             state->args = ap;
-            state->ret = rr;
+            state->ret  = rr;
 
             __pcall(state, fn_val->u.clsr);
 
@@ -1542,7 +1542,7 @@ dispatch:
 
         VM_CASE(RET) {
             uint16_t src = state->pc->a;
-            Value* val = __get_register(state, src);
+            Value*   val = __get_register(state, src);
 
             __return(state, std::move(*val));
 
@@ -1555,8 +1555,8 @@ dispatch:
             uint16_t tbl = state->pc->b;
             uint16_t key = state->pc->c;
 
-            Value* value = __get_register(state, tbl);
-            Value* index = __get_register(state, key);
+            Value* value  = __get_register(state, tbl);
+            Value* index  = __get_register(state, key);
             Value* result = __array_get(value->u.arr, index->u.i);
 
             __set_register(state, dst, result->clone());
@@ -1579,11 +1579,11 @@ dispatch:
         VM_CASE(NEXTARR) {
             static std::unordered_map<void*, uint16_t> next_table;
 
-            uint16_t dst = state->pc->a;
+            uint16_t dst  = state->pc->a;
             uint16_t valr = state->pc->b;
 
-            Value* val = __get_register(state, valr);
-            void* ptr = __to_pointer(*val);
+            Value*   val = __get_register(state, valr);
+            void*    ptr = __to_pointer(*val);
             uint16_t key = 0;
 
             auto it = next_table.find(ptr);
@@ -1603,8 +1603,8 @@ dispatch:
             uint16_t dst = state->pc->a;
             uint16_t tbl = state->pc->b;
 
-            Value* val = __get_register(state, tbl);
-            int size = __array_size(val->u.arr);
+            Value* val  = __get_register(state, tbl);
+            int    size = __array_size(val->u.arr);
 
             __set_register(state, dst, Value(size));
             VM_NEXT();
@@ -1615,27 +1615,27 @@ dispatch:
             uint16_t objr = state->pc->b;
 
             Value* val = __get_register(state, objr);
-            int len = val->u.str->data_size;
+            int    len = val->u.str->size;
 
             __set_register(state, rdst, Value(len));
             VM_NEXT();
         }
 
         VM_CASE(CONSTR) {
-            uint16_t left = state->pc->a;
+            uint16_t left  = state->pc->a;
             uint16_t right = state->pc->b;
 
-            Value* left_val = __get_register(state, left);
+            Value* left_val  = __get_register(state, left);
             Value* right_val = __get_register(state, right);
 
-            struct String* left_str = left_val->u.str;
+            struct String* left_str  = left_val->u.str;
             struct String* right_str = right_val->u.str;
 
-            size_t new_length = left_str->data_size + right_str->data_size;
-            char* new_string = new char[new_length + 1];
+            size_t new_length = left_str->size + right_str->size;
+            char*  new_string = new char[new_length + 1];
 
-            std::memcpy(new_string, left_str->data, left_str->data_size);
-            std::memcpy(new_string + left_str->data_size, right_str->data, right_str->data_size);
+            std::memcpy(new_string, left_str->data, left_str->size);
+            std::memcpy(new_string + left_str->size, right_str->data, right_str->size);
 
             __set_register(state, left, Value(new_string));
 
@@ -1649,9 +1649,9 @@ dispatch:
             uint16_t str = state->pc->b;
             uint16_t idx = state->pc->c;
 
-            Value* str_val = __get_register(state, str);
-            struct String* tstr = str_val->u.str;
-            char chr = tstr->data[idx];
+            Value*         str_val = __get_register(state, str);
+            struct String* tstr    = str_val->u.str;
+            char           chr     = tstr->data[idx];
 
             __set_register(state, dst, Value(new struct String(&chr)));
             VM_NEXT();
@@ -1662,8 +1662,8 @@ dispatch:
             uint16_t src = state->pc->b;
             uint16_t idx = state->pc->c;
 
-            Value* str_val = __get_register(state, str);
-            struct String* tstr = str_val->u.str;
+            Value*         str_val = __get_register(state, str);
+            struct String* tstr    = str_val->u.str;
 
             char chr = static_cast<char>(src);
             VM_NEXT();
@@ -1674,7 +1674,7 @@ dispatch:
             uint16_t src = state->pc->b;
 
             Value* target = __get_register(state, src);
-            Value result = __to_int(state, *target);
+            Value  result = __to_int(state, *target);
 
             __set_register(state, dst, std::move(result));
             VM_NEXT();
@@ -1685,7 +1685,7 @@ dispatch:
             uint16_t src = state->pc->b;
 
             Value* target = __get_register(state, src);
-            Value result = __to_float(state, *target);
+            Value  result = __to_float(state, *target);
 
             __set_register(state, dst, std::move(result));
             VM_NEXT();
@@ -1696,7 +1696,7 @@ dispatch:
             uint16_t src = state->pc->b;
 
             Value* target = __get_register(state, src);
-            Value result = __to_string(*target);
+            Value  result = __to_string(*target);
 
             __set_register(state, dst, std::move(result));
             VM_NEXT();
@@ -1707,7 +1707,7 @@ dispatch:
             uint16_t src = state->pc->b;
 
             Value* target = __get_register(state, src);
-            Value result = __to_bool(*target);
+            Value  result = __to_bool(*target);
 
             __set_register(state, dst, std::move(result));
             VM_NEXT();

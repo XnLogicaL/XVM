@@ -28,33 +28,33 @@ namespace xvm {
  * value to accelerate dictionary operations and comparisons.
  */
 struct String {
-  char* data;       ///< Heap-allocated UTF-8 character data.
-  size_t data_size; ///< Number of bytes in the string (not null-terminated).
-  uint32_t hash;    ///< Cached hash for fast comparisons and dict lookup.
+    char*    data = NULL; ///< Heap-allocated UTF-8 character data.
+    size_t   size = NULL; ///< Number of bytes in the string (not null-terminated).
+    uint32_t hash = NULL; ///< Cached hash for fast comparisons and dict lookup.
 
-  XVM_IMPLCOPY(String);
-  XVM_IMPLMOVE(String);
+    XVM_IMPLCOPY(String);
+    XVM_IMPLMOVE(String);
 
-  /**
-   * @brief Constructs a new `String` from a null-terminated C-string.
-   * @param str The input C-string to copy.
-   */
-  String(const char* str);
-  ~String();
+    /**
+     * @brief Constructs a new `String` from a null-terminated C-string.
+     * @param str The input C-string to copy.
+     */
+    String(const char* str);
+    ~String();
 
-  /**
-   * @brief Gets a single-character string at the specified position.
-   * @param position Index of the character to retrieve.
-   * @return A new `String` containing just that character.
-   */
-  String get(size_t position);
+    /**
+     * @brief Gets a single-character string at the specified position.
+     * @param position Index of the character to retrieve.
+     * @return A new `String` containing just that character.
+     */
+    String get(size_t position);
 
-  /**
-   * @brief Replaces the character at the given index with the first character of another string.
-   * @param position Index of the character to replace.
-   * @param value A string whose first character will be used as the replacement.
-   */
-  void set(size_t position, const String& value);
+    /**
+     * @brief Replaces the character at the given index with the first character of another string.
+     * @param position Index of the character to replace.
+     * @param value A string whose first character will be used as the replacement.
+     */
+    void set(size_t position, const String& value);
 };
 
 } // namespace xvm

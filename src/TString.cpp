@@ -8,7 +8,7 @@ namespace xvm {
 
 String::String(const char* str)
   : data((char*)str /* TODO: dupe string */),
-    data_size(std::strlen(str)),
+    size(std::strlen(str)),
     hash(0 /* TODO: hash string */) {}
 
 String::~String() {
@@ -17,15 +17,15 @@ String::~String() {
 
 String::String(const String& other)
   : data(other.data /* TODO: dupe string */),
-    data_size(other.data_size),
+    size(other.size),
     hash(other.hash) {}
 
 String::String(String&& other)
   : data(other.data),
-    data_size(other.data_size),
+    size(other.size),
     hash(other.hash) {
     other.data = NULL;
-    other.data_size = 0;
+    other.size = 0;
     other.hash = 0;
 }
 
@@ -35,7 +35,7 @@ String& String::operator=(const String& other) {
 
         // TODO: dup string
         data = other.data;
-        data_size = other.data_size;
+        size = other.size;
         hash = other.hash;
     }
 
@@ -47,11 +47,11 @@ String& String::operator=(String&& other) {
         delete[] data;
 
         data = other.data;
-        data_size = other.data_size;
+        size = other.size;
         hash = other.hash;
 
         other.data = NULL;
-        other.data_size = 0;
+        other.size = 0;
         other.hash = 0;
     }
 
@@ -59,15 +59,15 @@ String& String::operator=(String&& other) {
 }
 
 void String::set(size_t position, const String& value) {
-    XVM_ASSERT(position < data_size, "String index position out of bounds");
-    XVM_ASSERT(value.data_size == 1, "Setting String index to non-character String");
+    XVM_ASSERT(position < size, "String index position out of bounds");
+    XVM_ASSERT(value.size == 1, "Setting String index to non-character String");
 
     data[position] = value.data[0];
 }
 
 String String::get(size_t position) {
-    XVM_ASSERT(position < data_size, "String index position out of bounds");
-    char chr = data[position];
+    XVM_ASSERT(position < size, "String index position out of bounds");
+    char chr   = data[position];
     char str[] = {chr, '\0'};
     return String(str);
 }

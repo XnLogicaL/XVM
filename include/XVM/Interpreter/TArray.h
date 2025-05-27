@@ -37,9 +37,9 @@ inline constexpr size_t ARRAY_INITAL_CAPACITY = 64;
  * delegated to the `CSize` helper, which tracks the logical size and performs bounds checks.
  */
 struct Array {
-    Value* data = NULL;                     ///< Pointer to array data buffer.
-    size_t datacap = ARRAY_INITAL_CAPACITY; ///< Allocated capacity.
-    CSize csize;                            ///< Logical size and resizing helper.
+    Value* data     = NULL;                  ///< Pointer to array data buffer.
+    size_t capacity = ARRAY_INITAL_CAPACITY; ///< Allocated capacity.
+    CSize  csize    = {};                    ///< Logical size and resizing helper.
 
     XVM_IMPLCOPY(Array);
     XVM_IMPLMOVE(Array);

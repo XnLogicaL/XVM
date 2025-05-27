@@ -30,14 +30,14 @@ std::string __nativeid(NativeFn fn) {
         return std::format("function <native@0x{:x}>", reinterpret_cast<uintptr_t>(fn));
 }
 
-void __set_error_state(const State* state, const std::string& message) {
+void __error_set(const State* state, const std::string& message) {
     const Callable& func = __current_callframe(const_cast<State*>(state))->closure->callee;
     state->err->has_error = true;
     state->err->funcsig = __funcsig(func);
     state->err->message = message;
 }
 
-void __clear_error_state(const State* state) {
+void __error_clear(const State* state) {
     state->err->has_error = false;
 }
 
@@ -46,15 +46,15 @@ bool __has_error(const State* state) {
 }
 
 bool __handle_error(State* state) {
-    CallStack* callstack = state->callstack;
     std::vector<std::string> funcsigs;
 
-    for (int i = callstack->frames_count - 1; i >= 0; i--) {
-        CallFrame* frame = &callstack->frames[i];
+    for (int i = state->callstack->sp - 1; i >= 0; i--) {
+        CallFrame* frame = &state->callstack->frames[i];
         if (frame->protect) {
-            Value errv(new String(state->err->message.c_str()));
-            __clear_error_state(state);
-            __return(state, std::move(errv));
+            const char* raw = state->err->message.c_str();
+
+            __error_clear(state);
+            __return(state, Value(new String(raw)));
             return true;
         }
 
@@ -117,22 +117,22 @@ void* __to_pointer(const Value& val) {
 
 CallFrame* __current_callframe(State* state) {
     CallStack* callstack = state->callstack;
-    return &callstack->frames[callstack->frames_count - 1];
+    return &callstack->frames[callstack->sp - 1];
 }
 
 void __push_callframe(State* state, CallFrame&& frame) {
-    if (state->callstack->frames_count >= 200) {
-        __set_error_state(state, "Stack overflow");
+    if (state->callstack->sp >= 200) {
+        __error_set(state, "Stack overflow");
         return;
     }
 
     CallStack* callstack = state->callstack;
-    callstack->frames[callstack->frames_count++] = std::move(frame);
+    callstack->frames[callstack->sp++] = std::move(frame);
 }
 
 void __pop_callframe(State* state) {
     CallStack* callstack = state->callstack;
-    callstack->frames_count--;
+    callstack->sp--;
 }
 
 template<const bool IsProtected>
@@ -176,7 +176,7 @@ void __return(State* XVM_RESTRICT state, Value&& retv) {
 
 Value __length(Value& val) {
     if (val.is_string())
-        return Value(static_cast<int>(val.u.str->data_size));
+        return Value(static_cast<int>(val.u.str->size));
     else if (val.is_array() || val.is_dict()) {
         size_t len = val.is_array() ? __array_size(val.u.arr) : __dict_size(val.u.dict);
         return Value(static_cast<int>(len));
@@ -242,7 +242,7 @@ std::string __to_cxx_string(const Value& val) {
 }
 
 std::string __to_literal_cxx_string(const Value& val) {
-    Value str = __to_string(val);
+    Value       str = __to_string(val);
     std::string str_cpy = str.u.str->data;
     // TODO
     return str_cpy;
@@ -280,7 +280,7 @@ Value __to_int(const State* V, const Value& val) {
             return Value(int_result);
         }
 
-        __set_error_state(V, "Failed to cast String into Int");
+        __error_set(V, "Failed to cast String into Int");
         return Value();
     }
     case Bool:
@@ -290,7 +290,7 @@ Value __to_int(const State* V, const Value& val) {
     }
 
     auto type = __to_cxx_string(val);
-    __set_error_state(V, std::format("Failed to cast {} into Int", type));
+    __error_set(V, std::format("Failed to cast {} into Int", type));
     return Value();
 }
 
@@ -314,7 +314,7 @@ Value __to_float(const State* V, const Value& val) {
             return Value(float_result);
         }
 
-        __set_error_state(V, "Failed to cast string to float");
+        __error_set(V, "Failed to cast string to float");
         return Value();
     }
     case Bool:
@@ -324,7 +324,7 @@ Value __to_float(const State* V, const Value& val) {
     }
 
     auto type = __type_cxx_string(val);
-    __set_error_state(V, std::format("Failed to cast {} to float", type));
+    __error_set(V, std::format("Failed to cast {} to float", type));
     return Value();
 }
 
@@ -461,7 +461,7 @@ void __closure_init(State* state, Closure* closure, size_t len) {
             }
 
             uint16_t idx = state->pc->b;
-            Value* value;
+            Value*   value;
             if (state->pc->a == 0)
                 value = &__current_callframe(state)->locals[idx];
             else { // Upvalue is captured twice; automatically close it.
@@ -559,12 +559,12 @@ size_t __dict_size(const Dict* dict) {
 
 // Checks if the given index is out of bounds of a given tables array component.
 bool __array_range_check(const Array* array, size_t index) {
-    return array->datacap > index;
+    return array->capacity > index;
 }
 
 // Dynamically grows and relocates the array component of a given table_obj object.
 void __array_resize(Array* array) {
-    size_t oldcap = array->datacap;
+    size_t oldcap = array->capacity;
     size_t newcap = oldcap * 2;
 
     Value* old_location = array->data;
@@ -576,7 +576,7 @@ void __array_resize(Array* array) {
     }
 
     array->data = new_location;
-    array->datacap = newcap;
+    array->capacity = newcap;
 
     delete[] old_location;
 }
@@ -609,7 +609,7 @@ size_t __array_size(const Array* array) {
     }
 
     size_t size = 0;
-    for (Value* ptr = array->data; ptr < array->data + array->datacap; ptr++) {
+    for (Value* ptr = array->data; ptr < array->data + array->capacity; ptr++) {
         if (!ptr->is_nil()) {
             size++;
         }
@@ -656,12 +656,12 @@ void __label_load(const State* state) {
 // Stack handling
 void __push(State* state, Value&& val) {
     CallFrame* frame = __current_callframe(state);
-    frame->locals[frame->locals_size++] = std::move(val);
+    frame->locals[frame->capacity++] = std::move(val);
 }
 
 void __drop(State* state) {
     CallFrame* frame = __current_callframe(state);
-    Value dropped = std::move(frame->locals[frame->locals_size--]); // Thanks RAII
+    Value      dropped = std::move(frame->locals[frame->capacity--]); // Thanks RAII
     dropped.reset();
 }
 
@@ -748,7 +748,7 @@ void __declare_core_lib(State* state) {
 
     static NativeFn core_error = [](State* state) -> Value {
         Value* arg0 = __get_register(state, state->args);
-        __set_error_state(state, arg0->to_cxx_string());
+        __error_set(state, arg0->to_cxx_string());
         return Value();
     };
 

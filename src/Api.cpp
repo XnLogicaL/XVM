@@ -17,53 +17,21 @@ void State::set_register(uint16_t reg, Value val) {
     impl::__set_register(this, reg, std::move(val));
 }
 
-void State::push_nil() {
-    push(Value());
-}
-
-void State::push_int(int value) {
-    push(Value(value));
-}
-
-void State::push_float(float value) {
-    push(Value(value));
-}
-
-void State::push_true() {
-    push(Value(true));
-}
-
-void State::push_false() {
-    push(Value(false));
-}
-
-void State::push_string(const char* str) {
-    push(Value(str));
-}
-
-void State::push_array() {
-    push(Value(new struct Array()));
-}
-
-void State::push_dict() {
-    push(Value(new struct Dict()));
-}
-
-void State::push(Value val) {
-    CallFrame* current_callframe = impl::__current_callframe(this);
-    XVM_ASSERT(current_callframe->locals_size <= CALLFRAME_MAX_LOCALS, "stack overflow");
+void State::push(Value&& val) {
+    CallFrame* frame = impl::__current_callframe(this);
+    XVM_ASSERT(frame->capacity <= CALLFRAME_MAX_LOCALS, "stack overflow");
     impl::__push(this, std::move(val));
 }
 
 void State::drop() {
-    CallFrame* current_callframe = impl::__current_callframe(this);
-    XVM_ASSERT(current_callframe->locals_size > 0, "stack underflow");
+    CallFrame* frame = impl::__current_callframe(this);
+    XVM_ASSERT(frame->capacity > 0, "stack underflow");
     impl::__drop(this);
 }
 
 size_t State::stack_size() {
     CallFrame* current_callframe = impl::__current_callframe(this);
-    return current_callframe->locals_size;
+    return current_callframe->capacity;
 }
 
 Value& State::get_global(const char* name) {

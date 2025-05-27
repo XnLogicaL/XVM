@@ -43,17 +43,17 @@ inline constexpr size_t CALLFRAME_MAX_LOCALS = 200;
  * Each `CallFrame` holds:
  * - A pointer to the `Closure` being executed (compiled function and captured upvalues).
  * - A pointer to a local variables array (`locals`).
- * - The size of the local variables array (`locals_size`).
+ * - The size of the local variables array (`capacity`).
  * - A saved program counter (`savedpc`) indicating where execution resumes after return.
  *
  * Copy operations are disabled via `XVM_NOCOPY`, but move semantics are allowed via `XVM_IMPLMOVE`.
  */
 struct CallFrame {
-    bool protect = false;        ///< Protect callframe from errors
-    Closure* closure = NULL;     ///< Function closure being invoked.
-    Value* locals = NULL;        ///< Pointer to local variable storage.
-    size_t locals_size = 0;      ///< Number of allocated local variables.
-    Instruction* savedpc = NULL; ///< Instruction pointer saved for return.
+    bool         protect  = false; ///< Protect callframe from errors
+    size_t       capacity = 0;     ///< Number of allocated local variables.
+    Value*       locals   = NULL;  ///< Pointer to local variable storage.
+    Closure*     closure  = NULL;  ///< Function closure being invoked.
+    Instruction* savedpc  = NULL;  ///< Instruction pointer saved for return.
 
     XVM_NOCOPY(CallFrame);   ///< Disable copy constructor and copy assignment.
     XVM_IMPLMOVE(CallFrame); ///< Enable move constructor and move assignment.
@@ -70,7 +70,7 @@ struct CallFrame {
  * Used to manage the execution of nested or recursive function calls.
  */
 struct CallStack {
-    size_t frames_count = 0;                ///< Number of currently active frames.
+    size_t    sp = 0;                       ///< Number of currently active frames.
     CallFrame frames[CALLSTACK_MAX_FRAMES]; ///< Stack-allocated array of call frames.
 };
 

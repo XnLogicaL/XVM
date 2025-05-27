@@ -33,7 +33,7 @@ namespace xvm {
 namespace impl {
 
 constexpr inline register_t BACKEND_REGS_START = REGISTER_COUNT - 1024;
-constexpr inline register_t BACKEND_REGS_END = REGISTER_COUNT - 1;
+constexpr inline register_t BACKEND_REGS_END   = REGISTER_COUNT - 1;
 
 const InstructionData& __pcdata(const State* state, const Instruction* const pc);
 
@@ -46,13 +46,13 @@ std::string __nativeid(NativeFn fn);
  * @param state Interpreter state.
  * @param message The error message.
  */
-void __set_error_state(const State* state, const std::string& message);
+void __error_set(const State* state, const std::string& message);
 
 /**
  * @brief Clears any existing error state in the interpreter.
  * @param state Interpreter state.
  */
-void __clear_error_state(const State* state);
+void __error_clear(const State* state);
 
 /**
  * @brief Checks whether the interpreter is currently in an error state.

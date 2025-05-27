@@ -64,12 +64,12 @@ struct alignas(8) Value {
      * @brief Holds the actual value for the current tag.
      */
     union Un {
-        int i;         ///< Integer.
-        float f;       ///< Float.
-        bool b;        ///< Boolean.
-        String* str;   ///< Heap string pointer.
-        Array* arr;    ///< Heap array pointer.
-        Dict* dict;    ///< Heap dictionary pointer.
+        int      i;    ///< Integer.
+        float    f;    ///< Float.
+        bool     b;    ///< Boolean.
+        String*  str;  ///< Heap string pointer.
+        Array*   arr;  ///< Heap array pointer.
+        Dict*    dict; ///< Heap dictionary pointer.
         Closure* clsr; ///< Function closure pointer.
     } u;
 
@@ -89,7 +89,7 @@ struct alignas(8) Value {
     explicit Value(Closure* ptr); ///< Constructs a Closure.
 
     Value clone() const; ///< Deep copy of the value.
-    void reset();        ///< Clears the value and resets to Nil.
+    void  reset();       ///< Clears the value and resets to Nil.
 
     // clang-format off
     XVM_NODISCARD XVM_FORCEINLINE constexpr bool is(ValueKind other) const { return type == other; }
@@ -129,7 +129,7 @@ struct alignas(8) Value {
     XVM_NODISCARD void* to_pointer() const;
 
     // Length functions
-    XVM_NODISCARD Value length() const;      ///< Returns the "length" of value if possible.
+    XVM_NODISCARD Value  length() const;     ///< Returns the "length" of value if possible.
     XVM_NODISCARD size_t cxx_length() const; ///< Returns native length.
 
     // Comparison

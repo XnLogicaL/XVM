@@ -48,7 +48,7 @@ inline constexpr size_t REGISTER_SPILL_COUNT = REGISTER_COUNT - REGISTER_STACK_C
  * @brief Represents an active runtime error during VM execution.
  */
 struct ErrorState {
-    bool has_error = false;
+    bool        has_error = false;
     std::string funcsig = ""; ///< Function signature of where the error occurred.
     std::string message = ""; ///< Human-readable error message.
 };
@@ -77,9 +77,22 @@ using SpillRegFile = RegFile<REGISTER_SPILL_COUNT>;
  * to 64 bytes to ensure optimal CPU cache usage during high-frequency access.
  */
 struct alignas(64) State {
-  public:
-    XVM_NOCOPY(State);
-    XVM_NOMOVE(State);
+    Instruction*  pc = NULL;     ///< Current instruction pointer.
+    Instruction** labels = NULL; ///< Jump target label array.
+
+    Dict*       globals = NULL;   ///< Global variable dictionary.
+    CallStack*  callstack = NULL; ///< Call stack of function frames.
+    ErrorState* err = NULL;       ///< Active/inactive error state.
+
+    Value      main = Value(); ///< Reference to the main function.
+    register_t ret = NULL;     ///< Return register index.
+    register_t args = NULL;    ///< First argument register index.
+
+    StkRegFile&   stack_registers;        ///< Stack register block.
+    SpillRegFile* spill_registers = NULL; ///< Heap (spill) register block.
+
+    XVM_NOCOPY(State); ///< The state object should not be copied.
+    XVM_NOMOVE(State); ///< The state object should not be moved.
 
     /**
      * @brief Constructs a new State.
@@ -101,32 +114,8 @@ struct alignas(64) State {
     /// Assigns a value to the given register.
     void set_register(uint16_t reg, Value value);
 
-    /// Pushes a `Nil` value onto the stack.
-    void push_nil();
-
-    /// Pushes an integer value onto the stack.
-    void push_int(int value);
-
-    /// Pushes a floating-point value onto the stack.
-    void push_float(float value);
-
-    /// Pushes a boolean `true` onto the stack.
-    void push_true();
-
-    /// Pushes a boolean `false` onto the stack.
-    void push_false();
-
-    /// Pushes a string value onto the stack.
-    void push_string(const char* str);
-
-    /// Pushes an empty array onto the stack.
-    void push_array();
-
-    /// Pushes an empty dictionary onto the stack.
-    void push_dict();
-
     /// Pushes a generic value onto the stack.
-    void push(Value value);
+    void push(Value&& value);
 
     /// Drops the top value from the stack and frees its resources.
     void drop();
@@ -151,21 +140,6 @@ struct alignas(64) State {
 
     /// Invokes a function closure with a given number of arguments.
     void call(const Closure& callee, size_t argc);
-
-  public:
-    Instruction* pc = NULL; ///< Current instruction pointer.
-    Instruction** labels;   ///< Jump target label array.
-
-    Dict* globals;        ///< Global variable dictionary.
-    CallStack* callstack; ///< Call stack of function frames.
-    ErrorState* err;      ///< Active error state, if any.
-
-    Value main;      ///< Reference to the main function.
-    register_t ret;  ///< Return register index.
-    register_t args; ///< First argument register index.
-
-    StkRegFile& stack_registers;   ///< Stack register block.
-    SpillRegFile* spill_registers; ///< Heap (spill) register block.
 };
 
 } // namespace xvm

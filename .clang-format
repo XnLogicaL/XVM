@@ -40,5 +40,6 @@ BreakBeforeBinaryOperators: NonAssignment
 PenaltyBreakBeforeFirstCallParameter: 0
 PenaltyReturnTypeOnItsOwnLine: 10000
 AlignConsecutiveMacros: true
+AlignConsecutiveDeclarations: true
 ContinuationIndentWidth: 2
 ConstructorInitializerIndentWidth: 2

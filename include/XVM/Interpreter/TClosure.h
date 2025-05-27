@@ -40,10 +40,10 @@ struct CallFrame;
  * or contain a heap-allocated copy of the value (closed).
  */
 struct UpValue {
-    bool open = true;           ///< Whether the upvalue is open (points to stack).
-    bool valid = false;         ///< Whether the upvalue has been properly initialized.
-    Value* value = NULL;        ///< Pointer to the actual value, or null.
-    Value heap_value = Value(); ///< Used to store the value when closed.
+    bool   open       = true;    ///< Whether the upvalue is open (points to stack).
+    bool   valid      = false;   ///< Whether the upvalue has been properly initialized.
+    Value* value      = NULL;    ///< Pointer to the actual value, or null.
+    Value  heap_value = Value(); ///< Used to store the value when closed.
 };
 
 /**
@@ -51,10 +51,10 @@ struct UpValue {
  * @brief Represents a user-defined xvm function, including its bytecode and metadata.
  */
 struct Function {
-    const char* id = "<anonymous>"; ///< Identifier string or default name.
-    size_t line = 0;                ///< Line number where function was defined (for debugging).
-    size_t size = 0;                ///< Total number of instructions.
-    Instruction* code = NULL;       ///< Pointer to the function’s instruction sequence.
+    const char*  id   = "<anonymous>"; ///< Identifier string or default name.
+    size_t       line = NULL;          ///< Line number where function was defined (for debugging).
+    size_t       size = NULL;          ///< Total number of instructions.
+    Instruction* code = NULL;          ///< Pointer to the function’s instruction sequence.
 };
 
 /**
@@ -80,8 +80,8 @@ struct Callable {
      * @enum Tag
      * @brief Indicates the kind of function this Callable represents.
      */
-    CallableKind type = CallableKind::None;
-    size_t arity = 0; ///< Number of arguments expected.
+    CallableKind type  = CallableKind::None;
+    size_t       arity = NULL; ///< Number of arguments expected.
 
     /**
      * @union Un
@@ -102,9 +102,9 @@ struct Callable {
  * A Closure is created when a function expression references non-local variables.
  */
 struct Closure {
-    Callable callee;      ///< Underlying callable (function or native).
-    UpValue* upvs = NULL; ///< Array of upvalue pointers.
-    size_t upv_count = 0; ///< Number of captured upvalues.
+    Callable callee    = {};   ///< Underlying callable (function or native).
+    UpValue* upvs      = NULL; ///< Array of upvalue pointers.
+    size_t   upv_count = 0;    ///< Number of captured upvalues.
 
     XVM_IMPLCOPY(Closure);
     XVM_IMPLMOVE(Closure);
