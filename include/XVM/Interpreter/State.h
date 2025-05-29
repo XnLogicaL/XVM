@@ -15,8 +15,10 @@
 
 #include <Common.h>
 #include <Interpreter/Callstack.h>
-#include <Interpreter/instruction.h>
-#include <Interpreter/tvalue.h>
+#include <Interpreter/Instruction.h>
+#include <Interpreter/TValue.h>
+#include <Interpreter/Allocator.h>
+#include <Interpreter/Container.h>
 
 /**
  * @namespace xvm
@@ -63,19 +65,23 @@ using SpillRegFile = RegFile<kHeapRegCount>;
  * to 64 bytes to ensure optimal CPU cache usage during high-frequency access.
  */
 struct alignas(64) State {
-    Instruction*  pc = NULL;     ///< Current instruction pointer.
-    Instruction** labels = NULL; ///< Jump target label array.
+    Dict* globals = NULL; ///< Global variable dictionary. Not wrapped in TempObj because it is not
+                          ///< defined locally.
+    Instruction* pc = NULL; ///< Current instruction pointer.
 
-    Dict*       globals = NULL;   ///< Global variable dictionary.
-    CallStack*  callstack = NULL; ///< Call stack of function frames.
-    ErrorState* err = NULL;       ///< Active/inactive error state.
+    TempBuf<Instruction*> lat;       ///< Label address table.
+    TempObj<CallStack>    callstack; ///< Call stack of function frames.
+    TempObj<ErrorState>   err;       ///< Active/inactive error state.
 
-    Value      main = XVM_NIL; ///< Reference to the main function.
-    register_t ret = NULL;     ///< Return register index.
-    register_t args = NULL;    ///< First argument register index.
+    Value    main = XVM_NIL; ///< Reference to the main function.
+    uint16_t ret = 0;        ///< Return register index.
+    uint16_t args = 0;       ///< First argument register index.
 
-    StkRegFile&   stkRegs;         ///< Stack register block.
-    SpillRegFile* heapRegs = NULL; ///< Heap (spill) register block.
+    StkRegFile&     stkRegs;         ///< Stack register block.
+    SpillRegFile*   heapRegs = NULL; ///< Heap (spill) register block.
+    BytecodeHolder& holder;
+
+    ByteAllocator strAlloc;
 
     XVM_NOCOPY(State); ///< The state object should not be copied.
     XVM_NOMOVE(State); ///< The state object should not be moved.
@@ -84,7 +90,7 @@ struct alignas(64) State {
      * @brief Constructs a new State.
      * @param file Reference to the stack register file.
      */
-    explicit State(StkRegFile& file);
+    State(BytecodeHolder& holder, size_t labelCount, StkRegFile& file);
     ~State();
 
     /// Begins executing instructions starting at the current program counter (`pc`).

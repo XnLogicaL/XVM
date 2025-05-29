@@ -32,8 +32,8 @@ namespace xvm {
  */
 namespace impl {
 
-constexpr inline register_t BACKEND_REGS_START = kRegCount - 1024;
-constexpr inline register_t BACKEND_REGS_END = kRegCount - 1;
+constexpr inline uint16_t BACKEND_REGS_START = kRegCount - 1024;
+constexpr inline uint16_t BACKEND_REGS_END = kRegCount - 1;
 
 const InstructionData& __getAddressData(const State* state, const Instruction* const pc);
 
@@ -44,13 +44,13 @@ std::string __getFuncSig(const Callable& func);
  * @param state Interpreter state.
  * @param message The error message.
  */
-void __setError(const State* state, const std::string& message);
+void __setError(State* state, const std::string& message);
 
 /**
  * @brief Clears any existing error state in the interpreter.
  * @param state Interpreter state.
  */
-void __clearError(const State* state);
+void __clearError(State* state);
 
 /**
  * @brief Checks whether the interpreter is currently in an error state.
@@ -73,7 +73,7 @@ bool __handleError(State* state);
  * @param index Index of the constant.
  * @return The constant value.
  */
-Value __getK(const State* state, size_t index);
+Value __getConstant(const State* state, size_t index);
 
 /**
  * @brief Returns the type of a value as a xvm string object.
@@ -178,7 +178,7 @@ Value __toString(const Value& val);
  * @param val The value to convert.
  * @return std::string The stringified value.
  */
-std::string toCxxString(const Value& val);
+std::string __toCxxString(const Value& val);
 
 /**
  * @brief Converts the value to a literal string without applying any escaping or transformation.
@@ -221,7 +221,7 @@ bool __toCxxBool(const Value& val);
  * @param val The value to convert.
  * @return Value Integer Value or Nil.
  */
-Value __toInt(const State* V, const Value& val);
+Value __toInt(State* state, const Value& val);
 
 /**
  * @brief Converts the given value to a floating-point Value or returns Nil if not possible.
@@ -232,7 +232,7 @@ Value __toInt(const State* V, const Value& val);
  * @param val The value to convert.
  * @return Value Float Value or Nil.
  */
-Value __toFloat(const State* V, const Value& val);
+Value __toFloat(State* state, const Value& val);
 
 /**
  * @brief Deeply compares two values for equality.
@@ -404,20 +404,10 @@ Value* __getArrayField(const Array* array, size_t index);
  */
 size_t __getArraySize(const Array* array);
 
-/**
- * @brief Allocates space for a set number of labels in the state.
- *
- * @param state The runtime state.
- * @param count Number of labels to allocate.
- */
-void __initLabelAddressTable(State* state, size_t count);
+void __setString(String* string, size_t index, char chr);
+char __getString(String* string, size_t index);
 
-/**
- * @brief Deallocates label memory in the given state.
- *
- * @param state The runtime state.
- */
-void __deinitLabelAddressTable(State* state);
+String* __concatString(String* left, String* right);
 
 /**
  * @brief Returns a pointer to a label instruction by index.
@@ -504,7 +494,7 @@ Value* __getRegister(const State* state, uint16_t reg);
  * @brief Creates the main function closure for a compilation unit.
  * @return Pointer to main closure.
  */
-Closure* __initMainFunction();
+void __initMainFunction(State* state);
 
 /**
  * @brief Declares the built-in core library into the interpreter state.

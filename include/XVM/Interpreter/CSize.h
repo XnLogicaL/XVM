@@ -1,4 +1,4 @@
-// This file is a part of the xvm Programming Language project
+// This file is a part of the XVM Project
 // Copyright (C) 2024-2025 XnLogical - Licensed under GNU GPL v3.0
 
 /**

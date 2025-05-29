@@ -9,15 +9,72 @@
 namespace xvm {
 
 template<typename T>
-class LinearAllocator {
-  public:
-    using Dtor = std::function<void()>;
+class TempBuf {
+    // TempBuf relies on the fact that T is default constructible to ensure an uninitialized buffer
+    // can exist.
+    static_assert(std::is_default_constructible_v<T>, "T must be default constructible");
 
+  public:
+    size_t size = 0;
+    T*     data = NULL;
+
+    explicit TempBuf(size_t size)
+      : size(size),
+        data(new T[size]) {}
+
+    inline ~TempBuf() {
+        delete[] data;
+    }
+
+    // clang-format off
+    explicit TempBuf(const TempBuf<T>& other) requires std::is_copy_constructible_v<T>;
+    explicit TempBuf(TempBuf<T>&& other)      requires std::is_move_constructible_v<T>;
+
+    TempBuf<T>& operator=(const TempBuf<T>& other) requires std::is_copy_assignable_v<T>;
+    TempBuf<T>& operator=(TempBuf<T>&& other)      requires std::is_move_assignable_v<T>;
+    // clang-format on
+};
+
+template<typename T>
+class TempObj {
+  public:
+    T* const obj;
+
+    explicit TempObj()
+        requires std::is_default_constructible_v<T>
+    : obj(new T) {}
+
+    template<typename... Args>
+        requires std::is_constructible_v<T, Args...>
+    explicit TempObj(Args&&... args)
+      : obj(new T(std::forward<Args>(args)...)) {}
+
+    inline ~TempObj() {
+        delete obj;
+    }
+
+    // clang-format off
+    explicit TempObj(const TempObj<T>& other) requires std::is_copy_constructible_v<T>;
+    explicit TempObj(TempObj<T>&& other)      requires std::is_move_constructible_v<T>;
+
+    TempObj<T>& operator=(const TempObj<T>& other) requires std::is_copy_assignable_v<T>;
+    TempObj<T>& operator=(TempObj<T>&& other)      requires std::is_move_assignable_v<T>;
+    // clang-format on
+
+    T*       operator->();
+    const T* operator->() const;
+};
+
+template<typename T>
+class LinearAllocator {
     // We do static assertions instead of concept constraints to avoid repetition in function
     // template definitions.
     static_assert(std::is_default_constructible_v<T>, "T must be default constructible");
     static_assert(std::is_move_assignable_v<T>, "T must be move assignable");
     static_assert(std::is_destructible_v<T>, "T must be destructible");
+
+  public:
+    using Dtor = std::function<void()>;
 
     explicit LinearAllocator(size_t size)
       : cap(size),

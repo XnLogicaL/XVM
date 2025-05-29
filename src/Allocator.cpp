@@ -5,6 +5,67 @@
 
 namespace xvm {
 
+// clang-format off
+// ^^ we do this because concept syntax is still partially supported by clang-format
+
+template<typename T>
+TempBuf<T>::TempBuf(const TempBuf<T>& other)
+    requires std::is_copy_constructible_v<T>
+  : size(other.size)
+  , data(new T[size]) {
+    std::memcpy(data, other.data, size);
+}
+
+template<typename T>
+TempBuf<T>::TempBuf(TempBuf<T>&& other)
+    requires std::is_move_constructible_v<T>
+  : size(other.size)
+  , data(other.data) {
+    other.size = 0;
+    other.data = NULL;
+}
+
+template<typename T>
+TempBuf<T>& TempBuf<T>::operator=(const TempBuf<T>& other)
+    requires std::is_copy_assignable_v<T>
+{
+    if (this != &other) {
+        size = other.size;
+        data = new T[size];
+        std::memcpy(data, other.data, size);
+    }
+
+    return *this;
+}
+
+template<typename T>
+TempBuf<T>& TempBuf<T>::operator=(TempBuf<T>&& other)
+    requires std::is_move_assignable_v<T>
+{
+    if (this != &other) {
+        size = other.size;
+        data = other.data;
+        other.size = 0;
+        other.data = NULL;
+    }
+
+    return *this;
+}
+
+template<typename T>
+TempObj<T>::TempObj(const TempObj<T>& other)
+    requires std::is_copy_constructible_v<T>
+  : obj(new T(other)) {}
+
+template<typename T>
+TempObj<T>::TempObj(TempObj<T>&& other)
+    requires std::is_move_constructible_v<T>
+{
+    other.obj = NULL;
+}
+
+// clang-format on
+
 template<typename T>
 LinearAllocator<T>::~LinearAllocator() {
     for (auto& dtor : dtorMap) {
@@ -30,14 +91,17 @@ void LinearAllocator<T>::resize() {
 template<typename T>
 T* LinearAllocator<T>::alloc() {
     size_t remBytes = cap - static_cast<size_t>(off - buf);
-    void*  aligned = std::align(alignof(T), sizeof(T), off, remBytes);
+    if (remBytes == 0) {
+        resize();
+    }
 
+    T* aligned = std::align(alignof(T), sizeof(T), off, remBytes);
     if (aligned == NULL) {
         throw std::bad_alloc();
     }
 
-    off = static_cast<std::byte*>(aligned) + sizeof(T);
-    return static_cast<T*>(aligned);
+    off = aligned + sizeof(T);
+    return aligned;
 }
 
 template<typename T>

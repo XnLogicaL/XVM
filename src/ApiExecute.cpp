@@ -7,19 +7,19 @@
 #include <cmath>
 
 #define VM_ERROR(message)                                                                          \
-    do {                                                                                           \
+    {                                                                                              \
         __setError(state, message);                                                                \
         VM_NEXT();                                                                                 \
-    } while (0)
+    }
 
 #define VM_FATAL(message)                                                                          \
-    do {                                                                                           \
+    {                                                                                              \
         std::cerr << "VM terminated with message: " << message << '\n';                            \
         std::abort();                                                                              \
-    } while (0)
+    }
 
 #define VM_NEXT()                                                                                  \
-    do {                                                                                           \
+    {                                                                                              \
         if constexpr (SingleStep) {                                                                \
             if constexpr (OverrideProgramCounter)                                                  \
                 state->pc = savedpc;                                                               \
@@ -29,7 +29,7 @@
         }                                                                                          \
         state->pc++;                                                                               \
         goto dispatch;                                                                             \
-    } while (0)
+    }
 
 #define VM_CHECK_RETURN()                                                                          \
     if XVM_UNLIKELY (state->callstack->sp == 0) {                                                  \
@@ -80,14 +80,13 @@
 
 namespace xvm {
 
-using enum ValueKind;
 using enum Opcode;
 
 // We use implementation functions only in this file.
 using namespace impl;
 
 template<const bool SingleStep = false, const bool OverrideProgramCounter = false>
-void __execute(State* state, Instruction insn = Instruction()) {
+static void execute(State* state, Instruction insn = Instruction()) {
 #if VM_USE_CGOTO
     static constexpr void* dispatch_table[0xFF] = {VM_DISPATCH_TABLE()};
 #endif
@@ -140,7 +139,7 @@ dispatch:
                 }
                 else if XVM_UNLIKELY (rhs->is_float()) {
                     lhs->u.f = static_cast<float>(lhs->u.i) + rhs->u.f;
-                    lhs->type = Float;
+                    lhs->type = ValueKind::Float;
                 }
             }
             else if (lhs->is_float()) {
@@ -202,7 +201,7 @@ dispatch:
                 }
                 else if XVM_UNLIKELY (rhs->is_float()) {
                     lhs->u.f = static_cast<float>(lhs->u.i) - rhs->u.f;
-                    lhs->type = Float;
+                    lhs->type = ValueKind::Float;
                 }
             }
             else if (lhs->is_float()) {
@@ -264,7 +263,7 @@ dispatch:
                 }
                 else if XVM_UNLIKELY (rhs->is_float()) {
                     lhs->u.f = static_cast<float>(lhs->u.i) * rhs->u.f;
-                    lhs->type = Float;
+                    lhs->type = ValueKind::Float;
                 }
             }
             else if (lhs->is_float()) {
@@ -334,7 +333,7 @@ dispatch:
                     }
 
                     lhs->u.f = static_cast<float>(lhs->u.i) / rhs->u.f;
-                    lhs->type = Float;
+                    lhs->type = ValueKind::Float;
                 }
             }
             else if (lhs->is_float()) {
@@ -411,7 +410,7 @@ dispatch:
                 }
                 else if XVM_UNLIKELY (rhs->is_float()) {
                     lhs->u.f = std::pow(static_cast<float>(lhs->u.i), rhs->u.f);
-                    lhs->type = Float;
+                    lhs->type = ValueKind::Float;
                 }
             }
             else if (lhs->is_float()) {
@@ -473,7 +472,7 @@ dispatch:
                 }
                 else if XVM_UNLIKELY (rhs->is_float()) {
                     lhs->u.f = std::fmod(static_cast<float>(lhs->u.i), rhs->u.f);
-                    lhs->type = Float;
+                    lhs->type = ValueKind::Float;
                 }
             }
             else if (lhs->is_float()) {
@@ -527,10 +526,10 @@ dispatch:
             Value*    val = __getRegister(state, dst);
             ValueKind type = val->type;
 
-            if (type == Int) {
+            if (type == ValueKind::Int) {
                 val->u.i = -val->u.i;
             }
-            else if (type == Float) {
+            else if (type == ValueKind::Float) {
                 val->u.f = -val->u.f;
             }
 
@@ -578,7 +577,7 @@ dispatch:
             uint16_t dst = state->pc->a;
             uint16_t idx = state->pc->b;
 
-            const Value& kval = __getK(state, idx);
+            const Value& kval = __getConstant(state, idx);
 
             __setRegister(state, dst, kval.clone());
             VM_NEXT();
@@ -621,7 +620,7 @@ dispatch:
 
         VM_CASE(LOADARR) {
             uint16_t dst = state->pc->a;
-            Value    arr(new struct Array());
+            Value    arr(new Array());
 
             __setRegister(state, dst, std::move(arr));
             VM_NEXT();
@@ -629,7 +628,7 @@ dispatch:
 
         VM_CASE(LOADDICT) {
             uint16_t dst = state->pc->a;
-            Value    dict(new struct Dict());
+            Value    dict(new Dict());
 
             __setRegister(state, dst, std::move(dict));
             VM_NEXT();
@@ -643,7 +642,12 @@ dispatch:
             const InstructionData& data = __getAddressData(state, state->pc);
             const std::string&     comment = data.comment;
 
-            struct Function f;
+            size_t idlen = comment.size();
+            char*  idbuf = (char*)state->strAlloc.alloc(idlen + 1 /*for nullbyte*/);
+            std::strcpy(idbuf, comment.c_str());
+
+            Function f;
+            f.id = idbuf;
             f.code = ++state->pc;
             f.size = len;
 
@@ -694,7 +698,7 @@ dispatch:
 
         VM_CASE(PUSHK) {
             uint16_t const_idx = state->pc->a;
-            Value    constant = __getK(state, const_idx);
+            Value    constant = __getConstant(state, const_idx);
 
             __push(state, std::move(constant));
             VM_NEXT();
@@ -763,9 +767,9 @@ dispatch:
             uint16_t dst = state->pc->a;
             uint16_t key = state->pc->b;
 
-            Value*         key_obj = __getRegister(state, key);
-            struct String* key_str = key_obj->u.str;
-            const Value&   global = state->globals->get(key_str->data);
+            Value*       key_obj = __getRegister(state, key);
+            String*      key_str = key_obj->u.str;
+            const Value& global = state->globals->get(key_str->data);
 
             __setRegister(state, dst, global.clone());
             VM_NEXT();
@@ -775,9 +779,9 @@ dispatch:
             uint16_t src = state->pc->a;
             uint16_t key = state->pc->b;
 
-            Value*         key_obj = __getRegister(state, key);
-            struct String* key_str = key_obj->u.str;
-            Value*         global = __getRegister(state, src);
+            Value*  key_obj = __getRegister(state, key);
+            String* key_str = key_obj->u.str;
+            Value*  global = __getRegister(state, src);
 
             state->globals->set(key_str->data, std::move(*global));
             VM_NEXT();
@@ -1622,50 +1626,53 @@ dispatch:
         }
 
         VM_CASE(CONSTR) {
-            uint16_t left = state->pc->a;
-            uint16_t right = state->pc->b;
+            uint16_t ra = state->pc->a;
+            uint16_t rb = state->pc->b;
 
-            Value* left_val = __getRegister(state, left);
-            Value* right_val = __getRegister(state, right);
+            Value* lhs = __getRegister(state, ra);
+            Value* rhs = __getRegister(state, rb);
 
-            struct String* left_str = left_val->u.str;
-            struct String* right_str = right_val->u.str;
+            String* lstr = lhs->u.str;
+            String* rstr = rhs->u.str;
+            String* str = __concatString(lstr, rstr);
 
-            size_t new_length = left_str->size + right_str->size;
-            char*  new_string = new char[new_length + 1];
-
-            std::memcpy(new_string, left_str->data, left_str->size);
-            std::memcpy(new_string + left_str->size, right_str->data, right_str->size);
-
-            __setRegister(state, left, Value(new_string));
-
-            delete[] new_string;
-
+            __setRegister(state, ra, Value(str));
             VM_NEXT();
         }
 
         VM_CASE(GETSTR) {
-            uint16_t dst = state->pc->a;
-            uint16_t str = state->pc->b;
-            uint16_t idx = state->pc->c;
+            uint16_t ra = state->pc->a;
+            uint16_t rb = state->pc->b;
+            uint16_t ic = state->pc->c;
 
-            Value*         str_val = __getRegister(state, str);
-            struct String* tstr = str_val->u.str;
-            char           chr = tstr->data[idx];
+            Value*  val = __getRegister(state, ra);
+            String* str = val->u.str;
+            if (ic + 1 > str->size) {
+                VM_ERROR("string index out of range");
+            }
 
-            __setRegister(state, dst, Value(new struct String(&chr)));
+            char chr = __getString(str, ic);
+
+            TempBuf<char> buf(2);
+            buf.data[0] = chr;
+            buf.data[1] = '\0';
+
+            __setRegister(state, rb, Value(buf.data));
             VM_NEXT();
         }
 
         VM_CASE(SETSTR) {
-            uint16_t str = state->pc->a;
-            uint16_t src = state->pc->b;
-            uint16_t idx = state->pc->c;
+            uint16_t ra = state->pc->a;
+            uint16_t cb = state->pc->b;
+            uint16_t ic = state->pc->c;
 
-            Value*         str_val = __getRegister(state, str);
-            struct String* tstr = str_val->u.str;
+            Value*  val = __getRegister(state, ra);
+            String* str = val->u.str;
+            if (ic + 1 > str->size) {
+                VM_ERROR("string index out of range");
+            }
 
-            char chr = static_cast<char>(src);
+            __setString(str, ic, (char)cb);
             VM_NEXT();
         }
 
@@ -1718,16 +1725,11 @@ exit:;
 }
 
 void State::execute() {
-    __execute<false, false>(this);
+    execute<false, false>(this);
 }
 
 void State::executeStep(std::optional<Instruction> insn) {
-    if (insn.has_value()) {
-        __execute<true, true>(this, *insn);
-    }
-    else {
-        __execute<true, false>(this, *insn);
-    }
+    insn.has_value() ? execute<true, true>(this, *insn) : execute<true, false>(this);
 }
 
 } // namespace xvm

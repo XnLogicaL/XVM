@@ -6,29 +6,23 @@
 
 namespace xvm {
 
-using namespace impl;
-
-// Initializes and returns a new state object
-State::State(StkRegFile& stk_registers)
-  : globals(new Dict),
-    callstack(new CallStack),
-    err(new ErrorState),
-    main(Value(__initMainFunction())),
-    stkRegs(stk_registers) {
-    __initRegisterFile(this);
-    __initLabelAddressTable(this, 0 /* TODO */);
-    __call(this, main.u.clsr);
-    __linearScanLabelsInBytecode(this);
-    __initCoreInterpLib(this);
+State::State(BytecodeHolder& holder, size_t labelCount, StkRegFile& regs)
+  : lat(labelCount),
+    globals(new Dict),
+    stkRegs(regs),
+    holder(holder),
+    strAlloc(1024 * 256) {
+    impl::__initRegisterFile(this);
+    impl::__linearScanLabelsInBytecode(this);
+    impl::__initCoreInterpLib(this);
+    impl::__initMainFunction(this);
+    // Call main
+    impl::__call(this, main.u.clsr);
 }
 
 State::~State() {
     delete globals;
-    delete callstack;
-    delete err;
-
-    __deinitRegisterFile(this);
-    __deinitLabelAddressTable(this);
+    impl::__deinitRegisterFile(this);
 }
 
 } // namespace xvm

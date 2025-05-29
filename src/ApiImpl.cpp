@@ -12,9 +12,8 @@ namespace impl {
 static std::unordered_map<NativeFn, std::string> native_fn_ids{};
 
 const InstructionData& __getAddressData(const State* state, const Instruction* const pc) {
-    // TODO
-    static const InstructionData dat = {.comment = ""};
-    return dat;
+    size_t offset = state->pc - pc;
+    return state->holder.insnData.at(offset);
 }
 
 static std::string nativeId(NativeFn fn) {
@@ -32,14 +31,14 @@ std::string __getFuncSig(const Callable& func) {
                                                : nativeId(func.u.ntv);
 }
 
-void __setError(const State* state, const std::string& message) {
+void __setError(State* state, const std::string& message) {
     const Callable& func = __callframe((State*)state)->closure->callee;
     state->err->has_error = true;
     state->err->funcsig = __getFuncSig(func);
     state->err->message = message;
 }
 
-void __clearError(const State* state) {
+void __clearError(State* state) {
     state->err->has_error = false;
 }
 
@@ -49,7 +48,7 @@ bool __hasError(const State* state) {
 
 template<typename T>
 static bool unwindStackUntilGuardFrame(State* state, T callback) {
-    CallStack* callstack = state->callstack;
+    auto& callstack = state->callstack;
 
     for (int i = callstack->sp - 1; i >= 0; i--) {
         CallFrame* frame = __callframe(state);
@@ -70,7 +69,7 @@ bool __handleError(State* state) {
 
     bool guardFrameTouched = unwindStackUntilGuardFrame(state, [&sigs, &state](CallFrame* frame) {
         if (frame->protect) {
-            ErrorState* err = state->err;
+            const auto& err = state->err;
             const char* raw = err->message.c_str();
 
             __clearError(state);
@@ -97,7 +96,7 @@ bool __handleError(State* state) {
     return false;
 }
 
-Value __getK(const State* state, size_t index) {
+Value __getConstant(const State* state, size_t index) {
     // TODO
     return XVM_NIL;
 }
@@ -140,7 +139,7 @@ void* __toPtr(const Value& val) {
 }
 
 CallFrame* __callframe(State* state) {
-    CallStack* callstack = state->callstack;
+    auto& callstack = state->callstack;
     return &callstack->frames[callstack->sp - 1];
 }
 
@@ -150,12 +149,12 @@ void __pushCallframe(State* state, CallFrame&& frame) {
         return;
     }
 
-    CallStack* callstack = state->callstack;
+    auto& callstack = state->callstack;
     callstack->frames[callstack->sp++] = std::move(frame);
 }
 
 void __popCallframe(State* state) {
-    CallStack* callstack = state->callstack;
+    auto& callstack = state->callstack;
     callstack->sp--;
 }
 
@@ -260,16 +259,14 @@ Value __toString(const Value& val) {
     return XVM_NIL;
 }
 
-std::string toCxxString(const Value& val) {
+std::string __toCxxString(const Value& val) {
     Value str = __toString(val);
     return std::string(str.u.str->data);
 }
 
 std::string __toLitCxxString(const Value& val) {
-    Value       str = __toString(val);
-    std::string str_cpy = str.u.str->data;
-    // TODO
-    return str_cpy;
+    Value str = __toString(val);
+    return xvm::stresc(str.u.str->data);
 }
 
 Value __toBool(const Value& val) {
@@ -284,7 +281,7 @@ bool __toCxxBool(const Value& val) {
     return __toBool(val).u.b;
 }
 
-Value __toInt(const State* V, const Value& val) {
+Value __toInt(State* state, const Value& val) {
     using enum ValueKind;
 
     if (val.is_number()) {
@@ -304,7 +301,7 @@ Value __toInt(const State* V, const Value& val) {
             return Value(int_result);
         }
 
-        __setError(V, "Failed to cast String into Int");
+        __setError(state, "Failed to cast String into Int");
         return XVM_NIL;
     }
     case Bool:
@@ -313,12 +310,12 @@ Value __toInt(const State* V, const Value& val) {
         break;
     }
 
-    auto type = toCxxString(val);
-    __setError(V, std::format("Failed to cast {} into Int", type));
+    auto type = __toCxxString(val);
+    __setError(state, std::format("Failed to cast {} into Int", type));
     return XVM_NIL;
 }
 
-Value __toFloat(const State* V, const Value& val) {
+Value __toFloat(State* state, const Value& val) {
     using enum ValueKind;
 
     if (val.is_number()) {
@@ -338,7 +335,7 @@ Value __toFloat(const State* V, const Value& val) {
             return Value(float_result);
         }
 
-        __setError(V, "Failed to cast string to float");
+        __setError(state, "Failed to cast string to float");
         return XVM_NIL;
     }
     case Bool:
@@ -348,7 +345,7 @@ Value __toFloat(const State* V, const Value& val) {
     }
 
     auto type = __type_cxx_string(val);
-    __setError(V, std::format("Failed to cast {} to float", type));
+    __setError(state, std::format("Failed to cast {} to float", type));
     return XVM_NIL;
 }
 
@@ -656,19 +653,28 @@ size_t __getArraySize(const Array* array) {
     return size;
 }
 
-void __initLabelAddressTable(State* state, size_t count) {
-    state->labels = new Instruction*[count];
+void __setString(String* string, size_t index, char chr) {
+    string->data[index] = chr;
+    string->hash = xvm::strhash(string->data);
 }
 
-void __deinitLabelAddressTable(State* state) {
-    if (state->labels) {
-        delete[] state->labels;
-        state->labels = NULL;
-    }
+char __getString(String* string, size_t index) {
+    return string->data[index];
+}
+
+String* __concatString(String* left, String* right) {
+    TempBuf<char> buf(left->size + right->size + 1);
+
+    std::memcpy(buf.data, left->data, left->size);
+    std::memcpy(buf.data + left->size, right->data, right->size);
+    // Set nullbyte
+    std::memset(buf.data + left->size + right->size, 0, 1);
+
+    return new String(buf.data);
 }
 
 Instruction* __getLabelAddress(const State* state, size_t index) {
-    return state->labels[index];
+    return state->lat.data[index];
 }
 
 void __linearScanLabelsInBytecode(const State* state) {
@@ -676,9 +682,9 @@ void __linearScanLabelsInBytecode(const State* state) {
 
     size_t index = 0;
 
-    for (Instruction* pc = state->pc; 1; pc++) {
+    for (Instruction* pc = state->holder.insns.data(); 1; pc++) {
         if (pc->op == Opcode::LBL) {
-            state->labels[index++] = pc;
+            state->lat.data[index++] = pc;
         }
         else if (pc->op == RET || pc->op == RETBF || pc->op == RETBT) {
             break;
@@ -737,20 +743,20 @@ Value* __getRegister(const State* state, uint16_t reg) {
     }
 }
 
-Closure* __initMainFunction() {
+void __initMainFunction(State* state) {
     Function fn;
     fn.id = "main";
     fn.line = 0;
-    // TODO
-    // fn.code = lctx.bytecode.data();
-    // fn.size = lctx.bytecode.size();
+    fn.code = state->holder.insns.data();
+    fn.size = state->holder.insns.size();
 
     Callable c;
     c.type = CallableKind::Function;
     c.u = {.fn = fn};
     c.arity = 1;
 
-    return new Closure(std::move(c));
+    Closure* cl = new Closure(std::move(c));
+    state->main = Value(cl);
 }
 
 static Callable makeNativeCallable(NativeFn ptr, size_t arity) {
