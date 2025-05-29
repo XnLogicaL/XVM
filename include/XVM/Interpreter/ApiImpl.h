@@ -419,13 +419,6 @@ String* __concatString(String* left, String* right);
 Instruction* __getLabelAddress(const State* state, size_t index);
 
 /**
- * @brief Loads the label instruction table into the state.
- *
- * @param state The runtime state.
- */
-void __linearScanLabelsInBytecode(const State* state);
-
-/**
  * @brief Pushes a value onto the VM stack.
  *
  * @param state The runtime state.
@@ -459,27 +452,13 @@ Value* __getLocal(State* XVM_RESTRICT state, size_t offset);
 void __setLocal(State* XVM_RESTRICT state, size_t offset, Value&& val);
 
 /**
- * @brief Allocates the VM register table.
- *
- * @param state The runtime state.
- */
-void __initRegisterFile(State* state);
-
-/**
- * @brief Frees the register table.
- *
- * @param state The runtime state.
- */
-void __deinitRegisterFile(const State* state);
-
-/**
  * @brief Assigns a value to a register.
  *
  * @param state The runtime state.
  * @param reg Register index.
  * @param val Value to assign.
  */
-void __setRegister(const State* state, uint16_t reg, Value&& val);
+void __setRegister(State* state, uint16_t reg, Value&& val);
 
 /**
  * @brief Retrieves a value from a register.
@@ -488,19 +467,7 @@ void __setRegister(const State* state, uint16_t reg, Value&& val);
  * @param reg Register index.
  * @return Value* Pointer to register value.
  */
-Value* __getRegister(const State* state, uint16_t reg);
-
-/**
- * @brief Creates the main function closure for a compilation unit.
- * @return Pointer to main closure.
- */
-void __initMainFunction(State* state);
-
-/**
- * @brief Declares the built-in core library into the interpreter state.
- * @param state Interpreter state.
- */
-void __initCoreInterpLib(State* state);
+Value* __getRegister(State* state, uint16_t reg);
 
 } // namespace impl
 

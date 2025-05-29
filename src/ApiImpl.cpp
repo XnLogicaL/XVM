@@ -9,20 +9,20 @@ namespace xvm {
 
 namespace impl {
 
-static std::unordered_map<NativeFn, std::string> native_fn_ids{};
-
 const InstructionData& __getAddressData(const State* state, const Instruction* const pc) {
     size_t offset = state->pc - pc;
     return state->holder.insnData.at(offset);
 }
 
 static std::string nativeId(NativeFn fn) {
-    auto it = native_fn_ids.find(fn);
-    if (it != native_fn_ids.end()) {
+    static std::unordered_map<NativeFn, std::string> id_map;
+
+    auto it = id_map.find(fn);
+    if (it != id_map.end()) {
         return std::format("function {}", it->second);
     }
     else {
-        return std::format("function <native@0x{:x}>", reinterpret_cast<uintptr_t>(fn));
+        return std::format("function <native@0x{:x}>", (uintptr_t)fn);
     }
 }
 
@@ -33,17 +33,17 @@ std::string __getFuncSig(const Callable& func) {
 
 void __setError(State* state, const std::string& message) {
     const Callable& func = __callframe((State*)state)->closure->callee;
-    state->err->has_error = true;
-    state->err->funcsig = __getFuncSig(func);
-    state->err->message = message;
+    state->error_info->has_error = true;
+    state->error_info->funcsig = __getFuncSig(func);
+    state->error_info->message = message;
 }
 
 void __clearError(State* state) {
-    state->err->has_error = false;
+    state->error_info->has_error = false;
 }
 
 bool __hasError(const State* state) {
-    return state->err->has_error;
+    return state->error_info->has_error;
 }
 
 template<typename T>
@@ -69,8 +69,8 @@ bool __handleError(State* state) {
 
     bool guardFrameTouched = unwindStackUntilGuardFrame(state, [&sigs, &state](CallFrame* frame) {
         if (frame->protect) {
-            const auto& err = state->err;
-            const char* raw = err->message.c_str();
+            const auto& error_info = state->error_info;
+            const char* raw = error_info->message.c_str();
 
             __clearError(state);
             __return(state, Value(new String(raw)));
@@ -86,7 +86,7 @@ bool __handleError(State* state) {
     }
 
     std::ostringstream oss;
-    oss << state->err->funcsig << ": " << state->err->message << "\n";
+    oss << state->error_info->funcsig << ": " << state->error_info->message << "\n";
 
     for (size_t i = 0; const std::string& funcsig : sigs) {
         oss << " #" << i++ << ' ' << funcsig << "\n";
@@ -674,22 +674,7 @@ String* __concatString(String* left, String* right) {
 }
 
 Instruction* __getLabelAddress(const State* state, size_t index) {
-    return state->lat.data[index];
-}
-
-void __linearScanLabelsInBytecode(const State* state) {
-    using enum Opcode;
-
-    size_t index = 0;
-
-    for (Instruction* pc = state->holder.insns.data(); 1; pc++) {
-        if (pc->op == Opcode::LBL) {
-            state->lat.data[index++] = pc;
-        }
-        else if (pc->op == RET || pc->op == RETBF || pc->op == RETBT) {
-            break;
-        }
-    }
+    return state->laddress_table.data[index];
 }
 
 void __push(State* state, Value&& val) {
@@ -713,83 +698,25 @@ void __setLocal(State* XVM_RESTRICT state, size_t offset, Value&& val) {
     frame->locals[offset] = std::move(val);
 }
 
-// ==========================================================
-// Register handling
-void __initRegisterFile(State* state) {
-    state->heapRegs = new SpillRegFile();
-}
 
-void __deinitRegisterFile(const State* state) {
-    delete state->heapRegs;
-}
-
-void __setRegister(const State* state, uint16_t reg, Value&& val) {
+void __setRegister(State* state, uint16_t reg, Value&& val) {
     if XVM_LIKELY (reg < kStkRegCount) {
-        state->stkRegs.registers[reg] = std::move(val);
+        state->stk_regf.registers[reg] = std::move(val);
     }
     else {
         const uint16_t offset = reg - kStkRegCount;
-        state->heapRegs->registers[offset] = std::move(val);
+        state->heap_regf->registers[offset] = std::move(val);
     }
 }
 
-Value* __getRegister(const State* state, uint16_t reg) {
+Value* __getRegister(State* state, uint16_t reg) {
     if XVM_LIKELY ((reg & 0xFF) == reg) {
-        return &state->stkRegs.registers[reg];
+        return &state->stk_regf.registers[reg];
     }
     else {
         const uint16_t offset = reg - kStkRegCount;
-        return &state->heapRegs->registers[offset];
+        return &state->heap_regf->registers[offset];
     }
-}
-
-void __initMainFunction(State* state) {
-    Function fn;
-    fn.id = "main";
-    fn.line = 0;
-    fn.code = state->holder.insns.data();
-    fn.size = state->holder.insns.size();
-
-    Callable c;
-    c.type = CallableKind::Function;
-    c.u = {.fn = fn};
-    c.arity = 1;
-
-    Closure* cl = new Closure(std::move(c));
-    state->main = Value(cl);
-}
-
-static Callable makeNativeCallable(NativeFn ptr, size_t arity) {
-    Callable c;
-    c.type = CallableKind::Native;
-    c.u.ntv = ptr;
-    c.arity = arity;
-    return c;
-}
-
-static void declareCoreFunction(State* state, const char* id, NativeFn ptr, size_t arity) {
-    Callable c = makeNativeCallable(ptr, arity);
-    Closure* cl = new Closure(std::move(c));
-
-    __setDictField(state->globals, id, Value(cl));
-    native_fn_ids[ptr] = id;
-}
-
-void __initCoreInterpLib(State* state) {
-    static NativeFn core_print = [](State* state) -> Value {
-        Value* arg0 = __getRegister(state, state->args);
-        std::cout << arg0->to_cxx_string() << "\n";
-        return XVM_NIL;
-    };
-
-    static NativeFn core_error = [](State* state) -> Value {
-        Value* arg0 = __getRegister(state, state->args);
-        __setError(state, arg0->to_cxx_string());
-        return XVM_NIL;
-    };
-
-    declareCoreFunction(state, "print", core_print, 1);
-    declareCoreFunction(state, "error", core_error, 1);
 }
 
 } // namespace impl

@@ -643,7 +643,7 @@ dispatch:
             const std::string&     comment = data.comment;
 
             size_t idlen = comment.size();
-            char*  idbuf = (char*)state->strAlloc.alloc(idlen + 1 /*for nullbyte*/);
+            char*  idbuf = (char*)state->str_alloc.alloc(idlen + 1 /*for nullbyte*/);
             std::strcpy(idbuf, comment.c_str());
 
             Function f;
