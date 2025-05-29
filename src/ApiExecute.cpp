@@ -85,6 +85,98 @@ using enum Opcode;
 // We use implementation functions only in this file.
 using namespace impl;
 
+static bool isArithOpcode(Opcode op) {
+    return (uint16_t)op >= (uint16_t)ADD && (uint16_t)op <= (uint16_t)FPOW;
+}
+
+template<typename A, typename B = A>
+static XVM_FORCEINLINE void performArith(Opcode op, A& a, B b) {
+    switch (op) {
+    case ADD:
+    case IADD:
+    case FADD:
+        a += b;
+        break;
+    case SUB:
+    case ISUB:
+    case FSUB:
+        a -= b;
+        break;
+    case MUL:
+    case IMUL:
+    case FMUL:
+        a *= b;
+        break;
+    case DIV:
+    case IDIV:
+    case FDIV:
+        a /= b;
+        break;
+    case MOD:
+    case IMOD:
+    case FMOD:
+        a = std::fmod(a, b);
+        break;
+    case POW:
+    case IPOW:
+    case FPOW:
+        a = std::pow(a, b);
+        break;
+    default:
+        break;
+    }
+}
+
+static XVM_FORCEINLINE int arith(State* state, Opcode op, uint16_t ra, uint16_t rb) {
+    if (!isArithOpcode(op)) {
+        return 1;
+    }
+
+    Value* lhs = __getRegister(state, ra);
+    Value* rhs = __getRegister(state, rb);
+
+    auto as_float = [](const Value& v) -> float {
+        return v.is_int() ? static_cast<float>(v.u.i) : v.u.f;
+    };
+
+    if (lhs->is_int() && rhs->is_int()) {
+        performArith(op, lhs->u.i, rhs->u.i);
+    }
+    else {
+        float a = as_float(*lhs);
+        float b = as_float(*rhs);
+
+        performArith(op, a, b);
+
+        lhs->u.f = a;
+        lhs->type = ValueKind::Float;
+    }
+
+    return 0;
+}
+
+static XVM_FORCEINLINE void iarith(State* state, Opcode op, uint16_t ra, int i) {
+    Value* lhs = __getRegister(state, ra);
+
+    if XVM_LIKELY (lhs->is_int()) {
+        performArith(op, lhs->u.i, i);
+    }
+    else if (lhs->is_float()) {
+        performArith(op, lhs->u.f, i);
+    }
+}
+
+static XVM_FORCEINLINE void farith(State* state, Opcode op, uint16_t ra, float f) {
+    Value* lhs = __getRegister(state, ra);
+
+    if XVM_LIKELY (lhs->is_int()) {
+        performArith(op, lhs->u.i, f);
+    }
+    else if (lhs->is_float()) {
+        performArith(op, lhs->u.f, f);
+    }
+}
+
 template<const bool SingleStep = false, const bool OverrideProgramCounter = false>
 static void execute(State* state, Instruction insn = Instruction()) {
 #if VM_USE_CGOTO
@@ -126,398 +218,47 @@ dispatch:
             VM_NEXT();
         }
 
-        VM_CASE(ADD) {
-            uint16_t ra = state->pc->a;
-            uint16_t rb = state->pc->b;
-
-            Value* lhs = __getRegister(state, ra);
-            Value* rhs = __getRegister(state, rb);
-
-            if XVM_LIKELY (lhs->is_int()) {
-                if XVM_LIKELY (rhs->is_int()) {
-                    lhs->u.i += rhs->u.i;
-                }
-                else if XVM_UNLIKELY (rhs->is_float()) {
-                    lhs->u.f = static_cast<float>(lhs->u.i) + rhs->u.f;
-                    lhs->type = ValueKind::Float;
-                }
-            }
-            else if (lhs->is_float()) {
-                if XVM_LIKELY (rhs->is_int()) {
-                    lhs->u.f += static_cast<float>(rhs->u.i);
-                }
-                else if XVM_UNLIKELY (rhs->is_float()) {
-                    lhs->u.f += rhs->u.f;
-                }
-            }
-
-            VM_NEXT();
-        }
-        VM_CASE(IADD) {
-            uint16_t ra = state->pc->a;
-            uint16_t ib = state->pc->b;
-            uint16_t ic = state->pc->c;
-
-            Value* lhs = __getRegister(state, ra);
-            int    imm = ((uint32_t)ic << 16) | ib;
-
-            if XVM_LIKELY (lhs->is_int()) {
-                lhs->u.i += imm;
-            }
-            else if (lhs->is_float()) {
-                lhs->u.f += imm;
-            }
-
-            VM_NEXT();
-        }
-        VM_CASE(FADD) {
-            uint16_t ra = state->pc->a;
-            uint16_t fb = state->pc->b;
-            uint16_t fc = state->pc->c;
-
-            Value* lhs = __getRegister(state, ra);
-            float  imm = ((uint32_t)fc << 16) | fb;
-
-            if XVM_LIKELY (lhs->is_int()) {
-                lhs->u.i += imm;
-            }
-            else if (lhs->is_float()) {
-                lhs->u.f += imm;
-            }
-
-            VM_NEXT();
-        }
-
-        VM_CASE(SUB) {
-            uint16_t ra = state->pc->a;
-            uint16_t rb = state->pc->b;
-
-            Value* lhs = __getRegister(state, ra);
-            Value* rhs = __getRegister(state, rb);
-
-            if XVM_LIKELY (lhs->is_int()) {
-                if XVM_LIKELY (rhs->is_int()) {
-                    lhs->u.i -= rhs->u.i;
-                }
-                else if XVM_UNLIKELY (rhs->is_float()) {
-                    lhs->u.f = static_cast<float>(lhs->u.i) - rhs->u.f;
-                    lhs->type = ValueKind::Float;
-                }
-            }
-            else if (lhs->is_float()) {
-                if XVM_LIKELY (rhs->is_int()) {
-                    lhs->u.f -= static_cast<float>(rhs->u.i);
-                }
-                else if XVM_UNLIKELY (rhs->is_float()) {
-                    lhs->u.f -= rhs->u.f;
-                }
-            }
-
-            VM_NEXT();
-        }
-        VM_CASE(ISUB) {
-            uint16_t ra = state->pc->a;
-            uint16_t ib = state->pc->b;
-            uint16_t ic = state->pc->c;
-
-            Value* lhs = __getRegister(state, ra);
-            int    imm = ((uint32_t)ic << 16) | ib;
-
-            if XVM_LIKELY (lhs->is_int()) {
-                lhs->u.i -= imm;
-            }
-            else if (lhs->is_float()) {
-                lhs->u.f -= imm;
-            }
-
-            VM_NEXT();
-        }
-        VM_CASE(FSUB) {
-            uint16_t ra = state->pc->a;
-            uint16_t fb = state->pc->b;
-            uint16_t fc = state->pc->c;
-
-            Value* lhs = __getRegister(state, ra);
-            float  imm = ((uint32_t)fc << 16) | fb;
-
-            if XVM_LIKELY (lhs->is_int()) {
-                lhs->u.i -= imm;
-            }
-            else if (lhs->is_float()) {
-                lhs->u.f -= imm;
-            }
-
-            VM_NEXT();
-        }
-
-        VM_CASE(MUL) {
-            uint16_t ra = state->pc->a;
-            uint16_t rb = state->pc->b;
-
-            Value* lhs = __getRegister(state, ra);
-            Value* rhs = __getRegister(state, rb);
-
-            if XVM_LIKELY (lhs->is_int()) {
-                if XVM_LIKELY (rhs->is_int()) {
-                    lhs->u.i *= rhs->u.i;
-                }
-                else if XVM_UNLIKELY (rhs->is_float()) {
-                    lhs->u.f = static_cast<float>(lhs->u.i) * rhs->u.f;
-                    lhs->type = ValueKind::Float;
-                }
-            }
-            else if (lhs->is_float()) {
-                if XVM_LIKELY (rhs->is_int()) {
-                    lhs->u.f *= static_cast<float>(rhs->u.i);
-                }
-                else if XVM_UNLIKELY (rhs->is_float()) {
-                    lhs->u.f *= rhs->u.f;
-                }
-            }
-
-            VM_NEXT();
-        }
-        VM_CASE(IMUL) {
-            uint16_t ra = state->pc->a;
-            uint16_t ib = state->pc->b;
-            uint16_t ic = state->pc->c;
-
-            Value* lhs = __getRegister(state, ra);
-            int    imm = ((uint32_t)ic << 16) | ib;
-
-            if XVM_LIKELY (lhs->is_int()) {
-                lhs->u.i *= imm;
-            }
-            else if (lhs->is_float()) {
-                lhs->u.f *= imm;
-            }
-
-            VM_NEXT();
-        }
-        VM_CASE(FMUL) {
-            uint16_t ra = state->pc->a;
-            uint16_t fb = state->pc->b;
-            uint16_t fc = state->pc->c;
-
-            Value* lhs = __getRegister(state, ra);
-            float  imm = ((uint32_t)fc << 16) | fb;
-
-            if XVM_LIKELY (lhs->is_int()) {
-                lhs->u.i *= imm;
-            }
-            else if (lhs->is_float()) {
-                lhs->u.f *= imm;
-            }
-
-            VM_NEXT();
-        }
-
-        VM_CASE(DIV) {
-            uint16_t ra = state->pc->a;
-            uint16_t rb = state->pc->b;
-
-            Value* lhs = __getRegister(state, ra);
-            Value* rhs = __getRegister(state, rb);
-
-            if XVM_LIKELY (lhs->is_int()) {
-                if XVM_LIKELY (rhs->is_int()) {
-                    if (rhs->u.i == 0) {
-                        VM_ERROR("Division by zero");
-                    }
-
-                    lhs->u.i /= rhs->u.i;
-                }
-                else if XVM_UNLIKELY (rhs->is_float()) {
-                    if (rhs->u.f == 0.0f) {
-                        VM_ERROR("Division by zero");
-                    }
-
-                    lhs->u.f = static_cast<float>(lhs->u.i) / rhs->u.f;
-                    lhs->type = ValueKind::Float;
-                }
-            }
-            else if (lhs->is_float()) {
-                if XVM_LIKELY (rhs->is_int()) {
-                    if (rhs->u.i == 0) {
-                        VM_ERROR("Division by zero");
-                    }
-
-                    lhs->u.f /= static_cast<float>(rhs->u.i);
-                }
-                else if XVM_UNLIKELY (rhs->is_float()) {
-                    if (rhs->u.f == 0.0f) {
-                        VM_ERROR("Division by zero");
-                    }
-
-                    lhs->u.f /= rhs->u.f;
-                }
-            }
-
-            VM_NEXT();
-        }
-        VM_CASE(IDIV) {
-            uint16_t ra = state->pc->a;
-            uint16_t ib = state->pc->b;
-            uint16_t ic = state->pc->c;
-
-            Value* lhs = __getRegister(state, ra);
-            int    imm = ((uint32_t)ic << 16) | ib;
-            if (imm == 0) {
-                VM_ERROR("Division by zero");
-            }
-
-            if XVM_LIKELY (lhs->is_int()) {
-                lhs->u.i /= imm;
-            }
-            else if (lhs->is_float()) {
-                lhs->u.f /= imm;
-            }
-
-            VM_NEXT();
-        }
-        VM_CASE(FDIV) {
-            uint16_t ra = state->pc->a;
-            uint16_t fb = state->pc->b;
-            uint16_t fc = state->pc->c;
-
-            float imm = ((uint32_t)fc << 16) | fb;
-            if (imm == 0.0f) {
-                VM_ERROR("Division by zero");
-            }
-
-            Value* lhs = __getRegister(state, ra);
-
-            if XVM_LIKELY (lhs->is_int()) {
-                lhs->u.i /= imm;
-            }
-            else if (lhs->is_float()) {
-                lhs->u.f /= imm;
-            }
-
-            VM_NEXT();
-        }
-
+        VM_CASE(ADD)
+        VM_CASE(SUB)
+        VM_CASE(MUL)
+        VM_CASE(DIV)
+        VM_CASE(MOD)
         VM_CASE(POW) {
             uint16_t ra = state->pc->a;
             uint16_t rb = state->pc->b;
 
-            Value* lhs = __getRegister(state, ra);
-            Value* rhs = __getRegister(state, rb);
-
-            if XVM_LIKELY (lhs->is_int()) {
-                if XVM_LIKELY (rhs->is_int()) {
-                    lhs->u.i = std::pow(lhs->u.i, rhs->u.i);
-                }
-                else if XVM_UNLIKELY (rhs->is_float()) {
-                    lhs->u.f = std::pow(static_cast<float>(lhs->u.i), rhs->u.f);
-                    lhs->type = ValueKind::Float;
-                }
-            }
-            else if (lhs->is_float()) {
-                if XVM_LIKELY (rhs->is_int()) {
-                    lhs->u.f = std::pow(lhs->u.f, static_cast<float>(rhs->u.i));
-                }
-                else if XVM_UNLIKELY (rhs->is_float()) {
-                    lhs->u.f = std::pow(lhs->u.f, rhs->u.f);
-                }
-            }
-
+            arith(state, savedpc->op, ra, rb);
             VM_NEXT();
         }
+
+        VM_CASE(IADD)
+        VM_CASE(ISUB)
+        VM_CASE(IMUL)
+        VM_CASE(IDIV)
+        VM_CASE(IMOD)
         VM_CASE(IPOW) {
             uint16_t ra = state->pc->a;
             uint16_t ib = state->pc->b;
             uint16_t ic = state->pc->c;
 
-            Value* lhs = __getRegister(state, ra);
-            int    imm = ((uint32_t)ic << 16) | ib;
-
-            if XVM_LIKELY (lhs->is_int()) {
-                lhs->u.i = std::pow(lhs->u.i, imm);
-            }
-            else if (lhs->is_float()) {
-                lhs->u.f = std::pow(lhs->u.f, imm);
-            }
-
+            int imm = ((uint32_t)ic << 16) | ib;
+            iarith(state, savedpc->op, ra, imm);
             VM_NEXT();
         }
+
+        VM_CASE(FADD)
+        VM_CASE(FSUB)
+        VM_CASE(FMUL)
+        VM_CASE(FDIV)
+        VM_CASE(FMOD)
         VM_CASE(FPOW) {
             uint16_t ra = state->pc->a;
             uint16_t fb = state->pc->b;
             uint16_t fc = state->pc->c;
 
-            Value* lhs = __getRegister(state, ra);
-            float  imm = ((uint32_t)fc << 16) | fb;
+            float imm = ((uint32_t)fc << 16) | fb;
 
-            if XVM_LIKELY (lhs->is_int()) {
-                lhs->u.i = std::pow(lhs->u.i, imm);
-            }
-            else if (lhs->is_float()) {
-                lhs->u.f = std::pow(lhs->u.f, imm);
-            }
-
-            VM_NEXT();
-        }
-
-        VM_CASE(MOD) {
-            uint16_t ra = state->pc->a;
-            uint16_t rb = state->pc->b;
-
-            Value* lhs = __getRegister(state, ra);
-            Value* rhs = __getRegister(state, rb);
-
-            if XVM_LIKELY (lhs->is_int()) {
-                if XVM_LIKELY (rhs->is_int()) {
-                    lhs->u.i %= rhs->u.i;
-                }
-                else if XVM_UNLIKELY (rhs->is_float()) {
-                    lhs->u.f = std::fmod(static_cast<float>(lhs->u.i), rhs->u.f);
-                    lhs->type = ValueKind::Float;
-                }
-            }
-            else if (lhs->is_float()) {
-                if XVM_LIKELY (rhs->is_int()) {
-                    lhs->u.f = std::fmod(lhs->u.f, static_cast<float>(rhs->u.i));
-                }
-                else if XVM_UNLIKELY (rhs->is_float()) {
-                    lhs->u.f = std::fmod(lhs->u.f, rhs->u.f);
-                }
-            }
-
-            VM_NEXT();
-        }
-        VM_CASE(IMOD) {
-            uint16_t ra = state->pc->a;
-            uint16_t ib = state->pc->b;
-            uint16_t ic = state->pc->c;
-
-            Value* lhs = __getRegister(state, ra);
-            int    imm = ((uint32_t)ic << 16) | ib;
-
-            if XVM_LIKELY (lhs->is_int()) {
-                lhs->u.i = std::fmod(lhs->u.i, imm);
-            }
-            else if (lhs->is_float()) {
-                lhs->u.f = std::fmod(lhs->u.f, imm);
-            }
-
-            VM_NEXT();
-        }
-        VM_CASE(FMOD) {
-            uint16_t ra = state->pc->a;
-            uint16_t fb = state->pc->b;
-            uint16_t fc = state->pc->c;
-
-            Value* lhs = __getRegister(state, ra);
-            float  imm = ((uint32_t)fc << 16) | fb;
-
-            if XVM_LIKELY (lhs->is_int()) {
-                lhs->u.i = std::fmod(lhs->u.i, imm);
-            }
-            else if (lhs->is_float()) {
-                lhs->u.f = std::fmod(lhs->u.f, imm);
-            }
-
+            farith(state, savedpc->op, ra, imm);
             VM_NEXT();
         }
 

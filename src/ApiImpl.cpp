@@ -698,7 +698,6 @@ void __setLocal(State* XVM_RESTRICT state, size_t offset, Value&& val) {
     frame->locals[offset] = std::move(val);
 }
 
-
 void __setRegister(State* state, uint16_t reg, Value&& val) {
     if XVM_LIKELY (reg < kStkRegCount) {
         state->stk_regf.registers[reg] = std::move(val);
