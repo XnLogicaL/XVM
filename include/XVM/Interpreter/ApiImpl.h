@@ -25,6 +25,7 @@
  */
 namespace xvm {
 
+
 /**
  * @namespace impl
  * @defgroup impl_namespace
@@ -44,20 +45,20 @@ std::string __getFuncSig(const Callable& func);
  * @param state Interpreter state.
  * @param message The error message.
  */
-void __setError(State* state, const std::string& message);
+void __ethrow(State* state, const std::string& message);
 
 /**
  * @brief Clears any existing error state in the interpreter.
  * @param state Interpreter state.
  */
-void __clearError(State* state);
+void __eclear(State* state);
 
 /**
  * @brief Checks whether the interpreter is currently in an error state.
  * @param state Interpreter state.
  * @return true if an error is currently set; false otherwise.
  */
-bool __hasError(const State* state);
+bool __ehas(const State* state);
 
 /**
  * @brief Handles a currently active error by unwinding the call stack.
@@ -65,7 +66,7 @@ bool __hasError(const State* state);
  * @param state Interpreter state.
  * @return true if the error was successfully handled; false otherwise.
  */
-bool __handleError(State* state);
+bool __ehandle(State* state);
 
 /**
  * @brief Retrieves a constant value from the constant pool.
@@ -87,34 +88,27 @@ Value __type(const Value& val);
  * @param val The value to inspect.
  * @return Type as std::string.
  */
-std::string __typeCxx(const Value& val);
+std::string __cxxtype(const Value& val);
 
 /**
  * @brief Gets the raw pointer stored in a value, or NULL if not applicable.
  * @param val The value to inspect.
  * @return The underlying pointer.
  */
-void* __toPtr(const Value& val);
-
-/**
- * @brief Returns the current call frame on the stack.
- * @param state Interpreter state.
- * @return Pointer to the current call frame.
- */
-CallFrame* __callframe(State* state);
+void* __toPointer(const Value& val);
 
 /**
  * @brief Pushes a new call frame onto the call stack.
  * @param state Interpreter state.
  * @param frame Call frame to push.
  */
-void __pushCallframe(State* state, CallFrame&& frame);
+void __cipush(State* state, CallInfo&& ci);
 
 /**
  * @brief Pops the topmost call frame from the stack.
  * @param state Interpreter state.
  */
-void __popCallframe(State* state);
+void __cipop(State* state);
 
 /**
  * @brief Calls a function using a dynamic dispatch system.
@@ -158,7 +152,7 @@ Value __length(const Value& val);
  * @param val The value to get the length of.
  * @return int Length or -1 on failure.
  */
-int __lengthCxx(const Value& val);
+int __cxxlength(const Value& val);
 
 /**
  * @brief Converts the given value to a language-level String object.
@@ -416,7 +410,7 @@ String* __concatString(String* left, String* right);
  * @param index Index of label.
  * @return Instruction* Pointer to instruction or NULL.
  */
-Instruction* __getLabelAddress(const State* state, size_t index);
+const Instruction* __getLabelAddress(const State* state, size_t index);
 
 /**
  * @brief Pushes a value onto the VM stack.
@@ -440,7 +434,9 @@ void __drop(State* state);
  * @param offset Stack frame offset.
  * @return Value* Pointer to local value.
  */
-Value* __getLocal(State* XVM_RESTRICT state, size_t offset);
+StkId __getLocal(State* XVM_RESTRICT state, size_t offset);
+
+const StkId __getLocal(const State* XVM_RESTRICT state, size_t offset);
 
 /**
  * @brief Sets a local variable at a given offset.
@@ -468,6 +464,8 @@ void __setRegister(State* state, uint16_t reg, Value&& val);
  * @return Value* Pointer to register value.
  */
 Value* __getRegister(State* state, uint16_t reg);
+
+const Value* __getRegister(const State* state, uint16_t reg);
 
 } // namespace impl
 

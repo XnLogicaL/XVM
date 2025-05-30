@@ -9,9 +9,11 @@ namespace xvm {
 
 namespace impl {
 
+using enum Opcode;
+
 const InstructionData& __getAddressData(const State* state, const Instruction* const pc) {
     size_t offset = state->pc - pc;
-    return state->holder.insnData.at(offset);
+    return state->holder.data.at(offset);
 }
 
 static std::string nativeId(NativeFn fn) {
@@ -31,49 +33,48 @@ std::string __getFuncSig(const Callable& func) {
                                                : nativeId(func.u.ntv);
 }
 
-void __setError(State* state, const std::string& message) {
-    const Callable& func = __callframe((State*)state)->closure->callee;
-    state->error_info->has_error = true;
-    state->error_info->funcsig = __getFuncSig(func);
-    state->error_info->message = message;
+void __ethrow(State* state, const std::string& message) {
+    const Callable&   c = (state->ci_top - 1)->closure->callee;
+    const std::string func = __getFuncSig(c);
+
+    state->einfo->error = true;
+    state->einfo->func = state->salloc.fromArray(func.c_str());
+    state->einfo->msg = state->salloc.fromArray(message.c_str());
 }
 
-void __clearError(State* state) {
-    state->error_info->has_error = false;
+void __eclear(State* state) {
+    state->einfo->error = false;
 }
 
-bool __hasError(const State* state) {
-    return state->error_info->has_error;
+bool __ehas(const State* state) {
+    return state->einfo->error;
 }
 
 template<typename T>
 static bool unwindStackUntilGuardFrame(State* state, T callback) {
-    auto& callstack = state->callstack;
+    for (CallInfo* ci = state->ci_top - 1; ci >= state->cis.data; ci--) {
+        callback(ci);
 
-    for (int i = callstack->sp - 1; i >= 0; i--) {
-        CallFrame* frame = __callframe(state);
-        callback(frame);
-
-        if (frame->protect) {
+        if (ci->protect) {
             return true;
         }
 
-        __popCallframe(state);
+        __cipop(state);
     }
 
     return false;
 }
 
-bool __handleError(State* state) {
+bool __ehandle(State* state) {
     std::vector<std::string> sigs;
 
-    bool guardFrameTouched = unwindStackUntilGuardFrame(state, [&sigs, &state](CallFrame* frame) {
+    bool guardFrameTouched = unwindStackUntilGuardFrame(state, [&sigs, &state](CallInfo* frame) {
         if (frame->protect) {
-            const auto& error_info = state->error_info;
-            const char* raw = error_info->message.c_str();
+            const auto&   einfo = state->einfo;
+            const String* msg = new String(einfo->msg);
 
-            __clearError(state);
-            __return(state, Value(new String(raw)));
+            __eclear(state);
+            __return(state, Value(msg));
             return;
         }
 
@@ -85,11 +86,13 @@ bool __handleError(State* state) {
         return true;
     }
 
-    std::ostringstream oss;
-    oss << state->error_info->funcsig << ": " << state->error_info->message << "\n";
+    const ErrorInfo* einfo = state->einfo.obj;
 
-    for (size_t i = 0; const std::string& funcsig : sigs) {
-        oss << " #" << i++ << ' ' << funcsig << "\n";
+    std::ostringstream oss;
+    oss << einfo->func << ": " << einfo->msg << "\n";
+
+    for (size_t i = 0; const std::string& func : sigs) {
+        oss << " #" << i++ << ' ' << func << "\n";
     }
 
     std::cout << oss.str();
@@ -125,7 +128,7 @@ std::string __type_cxx_string(const Value& val) {
     return std::string(_Type.u.str->data);
 }
 
-void* __toPtr(const Value& val) {
+void* __toPointer(const Value& val) {
     switch (val.type) {
     case ValueKind::Function:
     case ValueKind::Array:
@@ -138,63 +141,61 @@ void* __toPtr(const Value& val) {
     }
 }
 
-CallFrame* __callframe(State* state) {
-    auto& callstack = state->callstack;
-    return &callstack->frames[callstack->sp - 1];
-}
-
-void __pushCallframe(State* state, CallFrame&& frame) {
-    if (state->callstack->sp >= 200) {
-        __setError(state, "Stack overflow");
+void __cipush(State* state, CallInfo&& ci) {
+    if (state->stk_top - state->stk.data >= 200) {
+        __ethrow(state, "Stack overflow");
         return;
     }
 
-    auto& callstack = state->callstack;
-    callstack->frames[callstack->sp++] = std::move(frame);
+    *(state->ci_top++) = std::move(ci);
 }
 
-void __popCallframe(State* state) {
-    auto& callstack = state->callstack;
-    callstack->sp--;
+void __cipop(State* state) {
+    state->ci_top--;
 }
 
 template<const bool IsProtected>
-void __call_base(State* state, Closure* closure) {
-    CallFrame cf;
+static void callBase(State* state, Closure* closure) {
+    CallInfo cf;
     cf.protect = IsProtected;
     cf.closure = new Closure(*closure);
 
     if (closure->callee.type == CallableKind::Function) {
         // Functions are automatically positioned by RET instructions; no need to increment saved
         // program counter.
-        cf.savedpc = state->pc;
-        __pushCallframe(state, std::move(cf));
+        cf.pc = state->pc;
+        cf.stk_top = state->stk_top;
+
+        __cipush(state, std::move(cf));
 
         state->pc = closure->callee.u.fn.code;
+        state->stk_base = state->stk_top;
     }
     else if (closure->callee.type == CallableKind::Native) {
         // Native functions require manual positioning as they don't increment program counter with
         // a RET instruction or similar.
-        cf.savedpc = state->pc + 1;
-        __pushCallframe(state, std::move(cf));
+        cf.pc = state->pc + 1;
+        cf.stk_top = state->stk_top;
+
+        __cipush(state, std::move(cf));
         __return(state, closure->callee.u.ntv(state));
     }
 }
 
 void __call(State* state, Closure* closure) {
-    __call_base<false>(state, closure);
+    callBase<false>(state, closure);
 }
 
 void __pcall(State* state, Closure* closure) {
-    __call_base<true>(state, closure);
+    callBase<true>(state, closure);
 }
 
 void __return(State* XVM_RESTRICT state, Value&& retv) {
-    CallFrame* current_frame = __callframe(state);
-    state->pc = current_frame->savedpc;
+    state->pc = (state->ci_top - 1)->pc;
+    state->stk_top = (state->ci_top - 1)->stk_top + 1;
 
-    __setRegister(state, state->ret, std::move(retv));
-    __popCallframe(state);
+    __push(state, std::move(retv));
+    __cipop(state);
 }
 
 Value __length(Value& val) {
@@ -208,7 +209,7 @@ Value __length(Value& val) {
     return XVM_NIL;
 }
 
-int __lengthCxx(Value& val) {
+int __cxxlength(Value& val) {
     Value len = __length(val);
     return len.is_nil() ? -1 : len.u.i;
 }
@@ -234,7 +235,7 @@ Value __toString(const Value& val) {
     case Array:
     case Dict: {
         auto type_str = __type_cxx_string(val);
-        auto final_str = std::format("<{}@0x{:x}>", type_str, (uintptr_t)__toPtr(val));
+        auto final_str = std::format("<{}@0x{:x}>", type_str, (uintptr_t)__toPointer(val));
 
         return Value(new struct String(final_str.c_str()));
     }
@@ -301,7 +302,7 @@ Value __toInt(State* state, const Value& val) {
             return Value(int_result);
         }
 
-        __setError(state, "Failed to cast String into Int");
+        __ethrow(state, "Failed to cast String into Int");
         return XVM_NIL;
     }
     case Bool:
@@ -311,7 +312,7 @@ Value __toInt(State* state, const Value& val) {
     }
 
     auto type = __toCxxString(val);
-    __setError(state, std::format("Failed to cast {} into Int", type));
+    __ethrow(state, std::format("Failed to cast {} into Int", type));
     return XVM_NIL;
 }
 
@@ -335,7 +336,7 @@ Value __toFloat(State* state, const Value& val) {
             return Value(float_result);
         }
 
-        __setError(state, "Failed to cast string to float");
+        __ethrow(state, "Failed to cast string to float");
         return XVM_NIL;
     }
     case Bool:
@@ -345,7 +346,7 @@ Value __toFloat(State* state, const Value& val) {
     }
 
     auto type = __type_cxx_string(val);
-    __setError(state, std::format("Failed to cast {} to float", type));
+    __ethrow(state, std::format("Failed to cast {} to float", type));
     return XVM_NIL;
 }
 
@@ -476,15 +477,14 @@ static void handleCapture(State* state, Closure* closure, size_t* upvalues) {
         __resizeClosureUpvs(closure);
     }
 
-    uint16_t   idx = state->pc->b;
-    Value*     value;
-    CallFrame* frame = __callframe(state);
+    uint16_t idx = state->pc->b;
+    Value*   value;
 
     if (state->pc->a == 0) {
-        value = &frame->locals[idx];
+        value = state->stk_base + idx - 1;
     }
     else { // Upvalue is captured twice; automatically close it.
-        UpValue* upv = &frame->closure->upvs[idx];
+        UpValue* upv = &(state->ci_top - 1)->closure->upvs[idx];
         if (upv->valid && upv->open) {
             upv->heap = upv->value->clone();
             upv->value = &upv->heap;
@@ -506,7 +506,7 @@ static void handleCapture(State* state, Closure* closure, size_t* upvalues) {
 void __initClosure(State* state, Closure* closure, size_t len) {
     size_t upvalues = 0;
     for (size_t i = 0; i < len; ++i) {
-        if ((state->pc++)->op == Opcode::CAPTURE) {
+        if ((state->pc++)->op == CAPTURE) {
             handleCapture(state, closure, &upvalues);
         }
     }
@@ -531,10 +531,6 @@ void __closeClosureUpvs(const Closure* closure) {
         }
     }
 }
-
-//  ================
-// [ Table handling ]
-//  ================
 
 // Hashes a dictionary key using the FNV-1a hashing algorithm.
 size_t __hashDictKey(const Dict* dict, const char* key) {
@@ -673,29 +669,25 @@ String* __concatString(String* left, String* right) {
     return new String(buf.data);
 }
 
-Instruction* __getLabelAddress(const State* state, size_t index) {
-    return state->laddress_table.data[index];
+const Instruction* __getLabelAddress(const State* state, size_t index) {
+    return state->lat.data[index];
 }
 
 void __push(State* state, Value&& val) {
-    CallFrame* frame = __callframe(state);
-    frame->locals[frame->capacity++] = std::move(val);
+    *(state->stk_top++) = std::move(val);
 }
 
 void __drop(State* state) {
-    CallFrame* frame = __callframe(state);
-    Value      dropped = std::move(frame->locals[frame->capacity--]);
-    dropped.reset();
+    state->stk_top--;
+    state->stk_top->reset();
 }
 
 Value* __getLocal(State* XVM_RESTRICT state, size_t offset) {
-    CallFrame* frame = __callframe(state);
-    return &frame->locals[offset];
+    return state->stk_base + offset - 1;
 }
 
 void __setLocal(State* XVM_RESTRICT state, size_t offset, Value&& val) {
-    CallFrame* frame = __callframe(state);
-    frame->locals[offset] = std::move(val);
+    *(state->stk_base + offset - 1) = std::move(val);
 }
 
 void __setRegister(State* state, uint16_t reg, Value&& val) {
@@ -704,7 +696,7 @@ void __setRegister(State* state, uint16_t reg, Value&& val) {
     }
     else {
         const uint16_t offset = reg - kStkRegCount;
-        state->heap_regf->registers[offset] = std::move(val);
+        state->regf->registers[offset] = std::move(val);
     }
 }
 
@@ -714,7 +706,17 @@ Value* __getRegister(State* state, uint16_t reg) {
     }
     else {
         const uint16_t offset = reg - kStkRegCount;
-        return &state->heap_regf->registers[offset];
+        return &state->regf->registers[offset];
+    }
+}
+
+const Value* __getRegister(const State* state, uint16_t reg) {
+    if XVM_LIKELY ((reg & 0xFF) == reg) {
+        return &state->stk_regf.registers[reg];
+    }
+    else {
+        const uint16_t offset = reg - kStkRegCount;
+        return &state->regf->registers[offset];
     }
 }
 

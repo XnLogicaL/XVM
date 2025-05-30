@@ -6,8 +6,8 @@
 namespace xvm {
 
 void BytecodeHolder::pushInstructionRaw(Instruction&& insn, InstructionData&& data) {
-    insns.push_back(insn);
-    insnData.push_back(data);
+    this->insns.push_back(insn);
+    this->data.push_back(data);
 }
 
 void BytecodeHolder::pushInstruction(Opcode op, OperandsArray&& ops, std::string&& comment) {

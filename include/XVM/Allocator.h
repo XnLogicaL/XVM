@@ -66,7 +66,13 @@ class TempObj {
 };
 
 template<typename T>
-class LinearAllocator {
+class Allocator {
+  public:
+    virtual T* alloc();
+};
+
+template<typename T>
+class LinearAllocator : public Allocator<T> {
     // We do static assertions instead of concept constraints to avoid repetition in function
     // template definitions.
     static_assert(std::is_default_constructible_v<T>, "T must be default constructible");
@@ -89,7 +95,7 @@ class LinearAllocator {
     XVM_NOMOVE(LinearAllocator);
 
     void resize();
-    T*   alloc();
+    T*   alloc() override;
 
     template<typename... Args>
         requires std::is_constructible_v<T, Args...>
@@ -112,7 +118,12 @@ class LinearAllocator {
     std::unordered_map<void*, Dtor> dtorMap;
 };
 
-class ByteAllocator {
+template<typename T = char>
+class ByteAllocator : public Allocator<T> {
+    // If I have to explain why we need this, I don't think you should be looking at this code right
+    // now.
+    static_assert(sizeof(T) == 1, "T must be byte-sized");
+
   public:
     explicit ByteAllocator(size_t size)
       : cap(size),
@@ -126,13 +137,17 @@ class ByteAllocator {
     XVM_NOCOPY(ByteAllocator);
     XVM_NOMOVE(ByteAllocator);
 
-    void  resize();
-    void* alloc(size_t bytes);
+    void resize();
+    T*   alloc() override;
+    T*   allocBytes(size_t bytes);
+
+    // Assumes null-terminated array
+    T* fromArray(const T* array);
 
   private:
-    std::byte* buf;
-    std::byte* off;
-    size_t     cap;
+    T*     buf;
+    T*     off;
+    size_t cap;
 };
 
 } // namespace xvm

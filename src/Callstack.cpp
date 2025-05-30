@@ -5,35 +5,35 @@
 
 namespace xvm {
 
-CallFrame::CallFrame()
+CallInfo::CallInfo()
   : locals(new Value[CALLFRAME_MAX_LOCALS]) {}
 
-CallFrame::CallFrame(CallFrame&& other)
+CallInfo::CallInfo(CallInfo&& other)
   : closure(other.closure),
     locals(other.locals),
-    savedpc(other.savedpc) {
+    pc(other.pc) {
     other.closure = NULL;
     other.locals = NULL;
-    other.savedpc = NULL;
+    other.pc = NULL;
 }
 
-CallFrame& CallFrame::operator=(CallFrame&& other) {
+CallInfo& CallInfo::operator=(CallInfo&& other) {
     if (this != &other) {
         delete[] this->locals;
 
         this->closure = other.closure;
         this->locals = other.locals;
-        this->savedpc = other.savedpc;
+        this->pc = other.pc;
 
         other.closure = NULL;
         other.locals = NULL;
-        other.savedpc = NULL;
+        other.pc = NULL;
     }
 
     return *this;
 }
 
-CallFrame::~CallFrame() {
+CallInfo::~CallInfo() {
     delete closure;
     delete[] locals;
 }

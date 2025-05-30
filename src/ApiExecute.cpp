@@ -8,21 +8,23 @@
 
 #define VM_ERROR(message)                                                                          \
     {                                                                                              \
-        __setError(state, message);                                                                \
+        __ethrow(state, message);                                                                  \
         VM_NEXT();                                                                                 \
     }
 
-#define VM_FATAL(message)                                                                          \
-    {                                                                                              \
-        std::cerr << "VM terminated with message: " << message << '\n';                            \
-        std::abort();                                                                              \
+#define VM_DISPATCH()                                                                              \
+    if constexpr (SingleStep) {                                                                    \
+        goto exit;                                                                                 \
+    }                                                                                              \
+    else {                                                                                         \
+        goto dispatch;                                                                             \
     }
 
 #define VM_NEXT()                                                                                  \
     {                                                                                              \
         if constexpr (SingleStep) {                                                                \
             if constexpr (OverrideProgramCounter)                                                  \
-                state->pc = savedpc;                                                               \
+                state->pc = pc;                                                                    \
             else                                                                                   \
                 state->pc++;                                                                       \
             goto exit;                                                                             \
@@ -32,7 +34,7 @@
     }
 
 #define VM_CHECK_RETURN()                                                                          \
-    if XVM_UNLIKELY (state->callstack->sp == 0) {                                                  \
+    if XVM_UNLIKELY (state->cstk->sp == 0) {                                                       \
         goto exit;                                                                                 \
     }
 
@@ -127,13 +129,10 @@ static XVM_FORCEINLINE void performArith(Opcode op, A& a, B b) {
     }
 }
 
-static XVM_FORCEINLINE int arith(State* state, Opcode op, uint16_t ra, uint16_t rb) {
+static XVM_FORCEINLINE int arith(State* state, Opcode op, Value* lhs, Value* rhs) {
     if (!isArithOpcode(op)) {
         return 1;
     }
-
-    Value* lhs = __getRegister(state, ra);
-    Value* rhs = __getRegister(state, rb);
 
     auto as_float = [](const Value& v) -> float {
         return v.is_int() ? static_cast<float>(v.u.i) : v.u.f;
@@ -155,9 +154,7 @@ static XVM_FORCEINLINE int arith(State* state, Opcode op, uint16_t ra, uint16_t 
     return 0;
 }
 
-static XVM_FORCEINLINE void iarith(State* state, Opcode op, uint16_t ra, int i) {
-    Value* lhs = __getRegister(state, ra);
-
+static XVM_FORCEINLINE void iarith(State* state, Opcode op, Value* lhs, int i) {
     if XVM_LIKELY (lhs->is_int()) {
         performArith(op, lhs->u.i, i);
     }
@@ -166,9 +163,7 @@ static XVM_FORCEINLINE void iarith(State* state, Opcode op, uint16_t ra, int i) 
     }
 }
 
-static XVM_FORCEINLINE void farith(State* state, Opcode op, uint16_t ra, float f) {
-    Value* lhs = __getRegister(state, ra);
-
+static XVM_FORCEINLINE void farith(State* state, Opcode op, Value* lhs, float f) {
     if XVM_LIKELY (lhs->is_int()) {
         performArith(op, lhs->u.i, f);
     }
@@ -184,16 +179,16 @@ static void execute(State* state, Instruction insn = Instruction()) {
 #endif
 
 dispatch:
-    Instruction* savedpc = state->pc;
+    Instruction* pc = state->pc;
 
     // Check for errors and attempt handling them.
-    // The __handleError function works by unwinding the stack until
+    // The __ehandle function works by unwinding the stack until
     // either hitting a stack frame flagged as error handler, or, the root
     // stack frame, and the root stack frame cannot be an error handler
     // under any circumstances. Therefore the error will act as a fatal
-    // error, being automatically thrown by __handleError, along with a
-    // callstack and debug information.
-    if (__hasError(state) && !__handleError(state)) {
+    // error, being automatically thrown by __ehandle, along with a
+    // cstk and debug information.
+    if (__ehas(state) && !__ehandle(state)) {
         goto exit;
     }
 
@@ -227,7 +222,10 @@ dispatch:
             uint16_t ra = state->pc->a;
             uint16_t rb = state->pc->b;
 
-            arith(state, savedpc->op, ra, rb);
+            Value* lhs = __getRegister(state, ra);
+            Value* rhs = __getRegister(state, rb);
+
+            arith(state, pc->op, lhs, rhs);
             VM_NEXT();
         }
 
@@ -241,8 +239,10 @@ dispatch:
             uint16_t ib = state->pc->b;
             uint16_t ic = state->pc->c;
 
-            int imm = ((uint32_t)ic << 16) | ib;
-            iarith(state, savedpc->op, ra, imm);
+            int    imm = ((uint32_t)ic << 16) | ib;
+            Value* lhs = __getRegister(state, ra);
+
+            iarith(state, pc->op, lhs, imm);
             VM_NEXT();
         }
 
@@ -256,15 +256,16 @@ dispatch:
             uint16_t fb = state->pc->b;
             uint16_t fc = state->pc->c;
 
-            float imm = ((uint32_t)fc << 16) | fb;
+            float  imm = ((uint32_t)fc << 16) | fb;
+            Value* lhs = __getRegister(state, ra);
 
-            farith(state, savedpc->op, ra, imm);
+            farith(state, pc->op, lhs, imm);
             VM_NEXT();
         }
 
         VM_CASE(NEG) {
-            uint16_t  dst = state->pc->a;
-            Value*    val = __getRegister(state, dst);
+            uint16_t  ra = state->pc->a;
+            Value*    val = __getRegister(state, ra);
             ValueKind type = val->type;
 
             if (type == ValueKind::Int) {
@@ -315,123 +316,126 @@ dispatch:
         }
 
         VM_CASE(LOADK) {
-            uint16_t dst = state->pc->a;
+            uint16_t ra = state->pc->a;
             uint16_t idx = state->pc->b;
 
             const Value& kval = __getConstant(state, idx);
 
-            __setRegister(state, dst, kval.clone());
+            __setRegister(state, ra, kval.clone());
             VM_NEXT();
         }
 
         VM_CASE(LOADNIL) {
-            uint16_t dst = state->pc->a;
+            uint16_t ra = state->pc->a;
 
-            __setRegister(state, dst, XVM_NIL);
+            __setRegister(state, ra, XVM_NIL);
             VM_NEXT();
         }
 
         VM_CASE(LOADI) {
-            uint16_t dst = state->pc->a;
+            uint16_t ra = state->pc->a;
             int      imm = ((uint32_t)state->pc->b << 16) | state->pc->a;
 
-            __setRegister(state, dst, Value(imm));
+            __setRegister(state, ra, Value(imm));
             VM_NEXT();
         }
 
         VM_CASE(LOADF) {
-            uint16_t dst = state->pc->a;
+            uint16_t ra = state->pc->a;
             float    imm = ((uint32_t)state->pc->b << 16) | state->pc->a;
 
-            __setRegister(state, dst, Value(imm));
+            __setRegister(state, ra, Value(imm));
             VM_NEXT();
         }
 
         VM_CASE(LOADBT) {
-            uint16_t dst = state->pc->a;
-            __setRegister(state, dst, Value(true));
+            uint16_t ra = state->pc->a;
+
+            __setRegister(state, ra, Value(true));
             VM_NEXT();
         }
 
         VM_CASE(LOADBF) {
-            uint16_t dst = state->pc->a;
-            __setRegister(state, dst, Value(false));
+            uint16_t ra = state->pc->a;
+
+            __setRegister(state, ra, Value(false));
             VM_NEXT();
         }
 
         VM_CASE(LOADARR) {
-            uint16_t dst = state->pc->a;
-            Value    arr(new Array());
+            uint16_t ra = state->pc->a;
 
-            __setRegister(state, dst, std::move(arr));
+            Value arr(new Array());
+
+            __setRegister(state, ra, std::move(arr));
             VM_NEXT();
         }
 
         VM_CASE(LOADDICT) {
-            uint16_t dst = state->pc->a;
-            Value    dict(new Dict());
+            uint16_t ra = state->pc->a;
 
-            __setRegister(state, dst, std::move(dict));
+            Value dict(new Dict());
+
+            __setRegister(state, ra, std::move(dict));
             VM_NEXT();
         }
 
         VM_CASE(CLOSURE) {
-            uint16_t dst = state->pc->a;
-            uint16_t len = state->pc->b;
-            uint16_t argc = state->pc->c;
+            uint16_t ra = state->pc->a;
+            uint16_t lb = state->pc->b;
+            uint16_t cc = state->pc->c;
 
-            const InstructionData& data = __getAddressData(state, state->pc);
-            const std::string&     comment = data.comment;
+            const auto&        data = __getAddressData(state, state->pc);
+            const std::string& comment = data.comment;
 
             size_t idlen = comment.size();
-            char*  idbuf = (char*)state->str_alloc.alloc(idlen + 1 /*for nullbyte*/);
+            char*  idbuf = state->salloc.allocBytes(idlen + 1 /*for nullbyte*/);
             std::strcpy(idbuf, comment.c_str());
 
             Function f;
             f.id = idbuf;
             f.code = ++state->pc;
-            f.size = len;
+            f.size = lb;
 
             Callable c;
-            c.arity = argc;
+            c.arity = cc;
             c.type = CallableKind::Function;
             c.u = {.fn = std::move(f)};
 
             Closure* closure = new Closure();
             closure->callee = std::move(c);
 
-            __initClosure(state, closure, len);
-            __setRegister(state, dst, Value(closure));
+            __initClosure(state, closure, lb);
+            __setRegister(state, ra, Value(closure));
 
             // Do not increment program counter, as __initClosure automatically positions it
             // to the correct instruction.
-            if constexpr (SingleStep)
-                goto exit;
-            else
-                goto dispatch;
+            VM_DISPATCH();
         }
 
         VM_CASE(GETUPV) {
-            uint16_t dst = state->pc->a;
-            uint16_t upv_id = state->pc->b;
-            UpValue* upv = __getClosureUpv(__callframe(state)->closure, upv_id);
+            uint16_t ra = state->pc->a;
+            uint16_t ib = state->pc->b;
 
-            __setRegister(state, dst, upv->value->clone());
+            UpValue* upv = __getClosureUpv(__callframe(state)->closure, ib);
+
+            __setRegister(state, ra, upv->value->clone());
             VM_NEXT();
         }
 
         VM_CASE(SETUPV) {
-            uint16_t src = state->pc->a;
+            uint16_t ra = state->pc->a;
             uint16_t upv_id = state->pc->b;
-            Value*   val = __getRegister(state, src);
+
+            Value* val = __getRegister(state, ra);
 
             __setClosureUpv(__callframe(state)->closure, upv_id, *val);
             VM_NEXT();
         }
 
         VM_CASE(PUSH) {
-            uint16_t src = state->pc->a;
-            Value*   val = __getRegister(state, src);
+            uint16_t ra = state->pc->a;
+            Value*   val = __getRegister(state, ra);
 
             __push(state, std::move(*val));
             VM_NEXT();
@@ -478,53 +482,53 @@ dispatch:
         }
 
         VM_CASE(GETLOCAL) {
-            uint16_t dst = state->pc->a;
+            uint16_t ra = state->pc->a;
             uint16_t off = state->pc->b;
             Value*   val = __getLocal(state, off);
 
-            __setRegister(state, dst, val->clone());
+            __setRegister(state, ra, val->clone());
             VM_NEXT();
         }
 
         VM_CASE(SETLOCAL) {
-            uint16_t src = state->pc->a;
+            uint16_t ra = state->pc->a;
             uint16_t off = state->pc->b;
-            Value*   val = __getRegister(state, src);
+            Value*   val = __getRegister(state, ra);
 
             __setLocal(state, off, std::move(*val));
             VM_NEXT();
         }
 
         VM_CASE(GETARG) {
-            uint16_t dst = state->pc->a;
+            uint16_t ra = state->pc->a;
             uint16_t off = state->pc->b;
             Value*   val = __getRegister(state, state->args + off);
 
-            __setRegister(state, dst, val->clone());
+            __setRegister(state, ra, val->clone());
             VM_NEXT();
         }
 
         VM_CASE(GETGLOBAL) {
-            uint16_t dst = state->pc->a;
+            uint16_t ra = state->pc->a;
             uint16_t key = state->pc->b;
 
             Value*       key_obj = __getRegister(state, key);
             String*      key_str = key_obj->u.str;
-            const Value& global = state->globals->get(key_str->data);
+            const Value& global = state->genv->get(key_str->data);
 
-            __setRegister(state, dst, global.clone());
+            __setRegister(state, ra, global.clone());
             VM_NEXT();
         }
 
         VM_CASE(SETGLOBAL) {
-            uint16_t src = state->pc->a;
+            uint16_t ra = state->pc->a;
             uint16_t key = state->pc->b;
 
             Value*  key_obj = __getRegister(state, key);
             String* key_str = key_obj->u.str;
-            Value*  global = __getRegister(state, src);
+            Value*  global = __getRegister(state, ra);
 
-            state->globals->set(key_str->data, std::move(*global));
+            state->genv->set(key_str->data, std::move(*global));
             VM_NEXT();
         }
 
@@ -1286,8 +1290,8 @@ dispatch:
         }
 
         VM_CASE(RET) {
-            uint16_t src = state->pc->a;
-            Value*   val = __getRegister(state, src);
+            uint16_t ra = state->pc->a;
+            Value*   val = __getRegister(state, ra);
 
             __return(state, std::move(*val));
 
@@ -1296,7 +1300,7 @@ dispatch:
         }
 
         VM_CASE(GETARR) {
-            uint16_t dst = state->pc->a;
+            uint16_t ra = state->pc->a;
             uint16_t tbl = state->pc->b;
             uint16_t key = state->pc->c;
 
@@ -1304,18 +1308,18 @@ dispatch:
             Value* index = __getRegister(state, key);
             Value* result = __getArrayField(value->u.arr, index->u.i);
 
-            __setRegister(state, dst, result->clone());
+            __setRegister(state, ra, result->clone());
             VM_NEXT();
         }
 
         VM_CASE(SETARR) {
-            uint16_t src = state->pc->a;
+            uint16_t ra = state->pc->a;
             uint16_t tbl = state->pc->b;
             uint16_t key = state->pc->c;
 
             Value* array = __getRegister(state, tbl);
             Value* index = __getRegister(state, key);
-            Value* value = __getRegister(state, src);
+            Value* value = __getRegister(state, ra);
 
             __setArrayField(array->u.arr, index->u.i, std::move(*value));
             VM_NEXT();
@@ -1324,11 +1328,11 @@ dispatch:
         VM_CASE(NEXTARR) {
             static std::unordered_map<void*, uint16_t> next_table;
 
-            uint16_t dst = state->pc->a;
-            uint16_t valr = state->pc->b;
+            uint16_t ra = state->pc->a;
+            uint16_t rb = state->pc->b;
 
-            Value*   val = __getRegister(state, valr);
-            void*    ptr = __toPtr(*val);
+            Value*   val = __getRegister(state, rb);
+            void*    ptr = __toPointer(*val);
             uint16_t key = 0;
 
             auto it = next_table.find(ptr);
@@ -1340,18 +1344,18 @@ dispatch:
             }
 
             Value* field = __getArrayField(val->u.arr, key);
-            __setRegister(state, dst, field->clone());
+            __setRegister(state, ra, field->clone());
             VM_NEXT();
         }
 
         VM_CASE(LENARR) {
-            uint16_t dst = state->pc->a;
+            uint16_t ra = state->pc->a;
             uint16_t tbl = state->pc->b;
 
             Value* val = __getRegister(state, tbl);
             int    size = __getArraySize(val->u.arr);
 
-            __setRegister(state, dst, Value(size));
+            __setRegister(state, ra, Value(size));
             VM_NEXT();
         }
 
@@ -1418,46 +1422,46 @@ dispatch:
         }
 
         VM_CASE(ICAST) {
-            uint16_t dst = state->pc->a;
-            uint16_t src = state->pc->b;
+            uint16_t ra = state->pc->a;
+            uint16_t rb = state->pc->b;
 
-            Value* target = __getRegister(state, src);
+            Value* target = __getRegister(state, rb);
             Value  result = __toInt(state, *target);
 
-            __setRegister(state, dst, std::move(result));
+            __setRegister(state, ra, std::move(result));
             VM_NEXT();
         }
 
         VM_CASE(FCAST) {
-            uint16_t dst = state->pc->a;
-            uint16_t src = state->pc->b;
+            uint16_t ra = state->pc->a;
+            uint16_t rb = state->pc->b;
 
-            Value* target = __getRegister(state, src);
+            Value* target = __getRegister(state, rb);
             Value  result = __toFloat(state, *target);
 
-            __setRegister(state, dst, std::move(result));
+            __setRegister(state, ra, std::move(result));
             VM_NEXT();
         }
 
         VM_CASE(STRCAST) {
-            uint16_t dst = state->pc->a;
-            uint16_t src = state->pc->b;
+            uint16_t ra = state->pc->a;
+            uint16_t rb = state->pc->b;
 
-            Value* target = __getRegister(state, src);
+            Value* target = __getRegister(state, rb);
             Value  result = __toString(*target);
 
-            __setRegister(state, dst, std::move(result));
+            __setRegister(state, ra, std::move(result));
             VM_NEXT();
         }
 
         VM_CASE(BCAST) {
-            uint16_t dst = state->pc->a;
-            uint16_t src = state->pc->b;
+            uint16_t ra = state->pc->a;
+            uint16_t rb = state->pc->b;
 
-            Value* target = __getRegister(state, src);
+            Value* target = __getRegister(state, rb);
             Value  result = __toBool(*target);
 
-            __setRegister(state, dst, std::move(result));
+            __setRegister(state, ra, std::move(result));
             VM_NEXT();
         }
     }

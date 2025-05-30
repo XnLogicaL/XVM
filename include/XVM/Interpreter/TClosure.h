@@ -27,7 +27,7 @@ inline constexpr size_t kClosureUpvCount = 10; ///< Default number of upvalues r
 
 struct State;
 struct Closure;
-struct CallFrame;
+struct CallInfo;
 
 /**
  * @struct UpValue
@@ -48,10 +48,14 @@ struct UpValue {
  * @brief Represents a user-defined xvm function, including its bytecode and metadata.
  */
 struct Function {
-    const char*  id = "<anonymous>"; ///< Identifier string or default name.
-    size_t       line = 0;           ///< Line number where function was defined (for debugging).
-    size_t       size = 0;           ///< Total number of instructions.
-    Instruction* code = NULL;        ///< Pointer to the function’s instruction sequence.
+    /// Identifier string or default name.
+    const char* id = "<anonymous>";
+
+    size_t line = 0; ///< Line number where function was defined (for debugging).
+    size_t size = 0; ///< Total number of instructions.
+
+    /// Pointer to the function’s instruction sequence.
+    const Instruction* code = NULL;
 };
 
 /**

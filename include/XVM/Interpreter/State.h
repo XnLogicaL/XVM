@@ -17,7 +17,7 @@
 #include <Interpreter/Callstack.h>
 #include <Interpreter/Instruction.h>
 #include <Interpreter/TValue.h>
-#include <Interpreter/Allocator.h>
+#include <Allocator.h>
 #include <Interpreter/Container.h>
 
 /**
@@ -27,18 +27,34 @@
  */
 namespace xvm {
 
-inline constexpr size_t kRegCount = 0xFFFF + 1;    ///< Total amount of addressable registers (2^16)
-inline constexpr size_t kStkRegCount = 0x00FF + 1; ///< Amount of stack registers (2^8)
-inline constexpr size_t kHeapRegCount = kRegCount - kStkRegCount; /// Amount of heap registers
+/// Total amount of addressable registers (2^16)
+constexpr XVM_GLOBAL size_t kRegCount = 0xFFFF + 1;
+
+/// Amount of stack registers (2^8)
+constexpr XVM_GLOBAL size_t kStkRegCount = 0x00FF + 1;
+
+/// Amount of heap registers
+constexpr XVM_GLOBAL size_t kHeapRegCount = kRegCount - kStkRegCount;
+
+constexpr XVM_GLOBAL size_t kMaxLocalCount = 200;
+
+constexpr XVM_GLOBAL size_t kMaxCiCount = 200;
+
+constexpr XVM_GLOBAL size_t kStrAllocPoolSize = 256 * 1024;
+
+using StkId = Value*;
+using CiStkId = CallInfo*;
+using InsnId = const Instruction*;
 
 /**
- * @struct ErrorState
+ * @struct ErrorInfo
  * @brief Represents an active runtime error during VM execution.
  */
-struct ErrorState {
-    bool        has_error = false;
-    std::string funcsig = ""; ///< Function signature of where the error occurred.
-    std::string message = ""; ///< Human-readable error message.
+struct ErrorInfo {
+    bool error = false;
+
+    const char* func; ///< Function signature of where the error occurred.
+    const char* msg;  ///< Human-readable error message.
 };
 
 /**
@@ -61,76 +77,46 @@ using SpillRegFile = RegFile<kHeapRegCount>;
  * @brief Represents the complete virtual machine execution state.
  *
  * This object owns and manages the program counter, call stack, register file,
- * globals, error reporting, and runtime execution loop. The structure is aligned
+ * genv, error reporting, and runtime execution loop. The structure is aligned
  * to 64 bytes to ensure optimal CPU cache usage during high-frequency access.
  */
+// clang-format off
 struct alignas(64) State {
-    BytecodeHolder& holder; ///< Reference to bytecode array
+    const BytecodeHolder& holder;                       ///< Bytecode array
 
-    struct Dict* globals = NULL; ///< Global variable dictionary. Not wrapped in TempObj because it
-                                 ///< is not defined locally.
+    StkRegFile& stk_regf;                               ///< Stack register file
 
-    Instruction* pc = NULL; ///< Program counter.
+    Dict* genv = NULL;                                  ///< Global environment
 
-    TempBuf<Instruction*> laddress_table; ///< Label address table.
-    TempObj<CallStack>    callstack;      ///< Call stack of function frames.
-    TempObj<ErrorState>   error_info;     ///< Active/inactive error state.
+    TempBuf<InsnId> lat;                                ///< Label address table                                      
+    TempObj<ErrorInfo> einfo;                           ///< Error info
+    TempObj<SpillRegFile> regf;                         ///< Register file
+                                                        
+    TempBuf<Value> stk{kMaxLocalCount};                 ///< Stack base
+    TempBuf<CallInfo> cis{kMaxCiCount};                 ///< Call info stack
 
-    Value    main = XVM_NIL; ///< Reference to the main function.
-    uint16_t ret = 0;        ///< Return register index.
-    uint16_t args = 0;       ///< First argument register index.
+    StkId stk_top = NULL;                               ///< Top of the stack
+    StkId stk_base = NULL;                              ///< Base of the current function
+    CiStkId ci_top = NULL;                              ///< Top of the callinfo stack
+    InsnId pc = NULL;                                   ///< Program counter
 
-    StkRegFile&           stk_regf;  ///< Stack register file.
-    TempObj<SpillRegFile> heap_regf; ///< Heap (spill) register file.
+    Value main = XVM_NIL;                               ///< Main function slot
 
-    ByteAllocator str_alloc; ///< String arena allocator.
+    ByteAllocator<char> salloc{kStrAllocPoolSize};      ///< String arena allocator
 
-    XVM_NOCOPY(State); ///< The state object should not be copied.
-    XVM_NOMOVE(State); ///< The state object should not be moved.
+    // The state object is not intended to be copied or moved to other locations in memory.
+    // It should only be tied to a larger global state, and should be passed around as references.
+    XVM_NOCOPY(State);
+    XVM_NOMOVE(State);
 
-    /**
-     * @brief Constructs a new State.
-     * @param file Reference to the stack register file.
-     */
+    // State objects are tied to other objects like bytecode containers and register files,
+    // therefore are not default constructible.
+    State() = delete;
+
     State(BytecodeHolder& holder, StkRegFile& file);
     ~State();
-
-    /// Begins executing instructions starting at the current program counter (`pc`).
-    void execute();
-
-    /// Executes a single instruction step. Optionally provide an override instruction.
-    void executeStep(std::optional<Instruction> insn = std::nullopt);
-
-    /// Returns a mutable reference to the value stored in the given register.
-    Value& getRegister(uint16_t reg);
-
-    /// Assigns a value to the given register.
-    void setRegister(uint16_t reg, Value value);
-
-    /// Pushes a generic value onto the stack.
-    void push(Value&& value);
-
-    /// Drops the top value from the stack and frees its resources.
-    void drop();
-
-    /// Assigns a value to a local variable at the given position.
-    void setLocal(size_t position, Value value);
-
-    /// Returns a reference to a local value at the given position.
-    Value& getLocal(size_t position);
-
-    /// Returns a reference to an argument value relative to the current call frame.
-    Value& getArg(size_t offset);
-
-    /// Retrieves the global variable with the given name.
-    Value& getGlobal(const char* name);
-
-    /// Assigns a value to a global variable with the given name.
-    void setGlobal(const char* name, const Value& value);
-
-    /// Invokes a function closure with a given number of arguments.
-    void call(const Closure& callee, size_t argc);
 };
+// clang-format on
 
 } // namespace xvm
 

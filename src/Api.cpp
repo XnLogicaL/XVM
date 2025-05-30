@@ -9,33 +9,56 @@ namespace xvm {
 
 using enum ValueKind;
 
-Value& State::getRegister(uint16_t reg) {
-    return *impl::__getRegister(this, reg);
+Value& getRegister(State& state, uint16_t reg) {
+    return *impl::__getRegister(&state, reg);
 }
 
-void State::setRegister(uint16_t reg, Value val) {
-    impl::__setRegister(this, reg, std::move(val));
+const Value& getRegister(const State& state, uint16_t reg) {
+    return *impl::__getRegister(&state, reg);
 }
 
-void State::push(Value&& val) {
-    CallFrame* frame = impl::__callframe(this);
-    XVM_ASSERT(frame->capacity <= CALLFRAME_MAX_LOCALS, "stack overflow");
-    impl::__push(this, std::move(val));
+void setRegister(State& state, uint16_t reg, Value&& val) {
+    impl::__setRegister(&state, reg, std::move(val));
 }
 
-void State::drop() {
-    CallFrame* frame = impl::__callframe(this);
-    XVM_ASSERT(frame->capacity > 0, "stack underflow");
-    impl::__drop(this);
+void push(State& state, Value&& val) {
+    CallInfo* ci = state.ci_top - 1;
+    XVM_ASSERT(state.cis.data - ci >= kMaxLocalCount, "stack overflow");
+    impl::__push(&state, std::move(val));
 }
 
-size_t State::stack_size() {
-    CallFrame* current_callframe = impl::__callframe(this);
-    return current_callframe->capacity;
+void drop(State& state) {
+    CallInfo* ci = state.ci_top - 1;
+    XVM_ASSERT(ci == state.cis.data, "stack underflow");
+    impl::__drop(&state);
 }
 
-Value& State::getGlobal(const char* name) {
-    return globals->get(name);
+void setLocal(State& state, size_t position, Value&& value) {
+    return impl::__setLocal(&state, position, std::move(value));
+}
+
+Value& getLocal(State& state, size_t position) {
+    return *impl::__getLocal(&state, position);
+}
+
+const Value& getLocal(const State& state, size_t position) {
+    return *impl::__getLocal(&state, position);
+}
+
+Value& getArgument(State& state, size_t offset) {
+    return *(state.stk_base + offset - 1);
+}
+
+const Value& getArgument(const State& state, size_t offset) {
+    return *(state.stk_base + offset - 1);
+}
+
+Value& getGlobal(State& state, const char* name) {
+    return state.genv->get(name);
+}
+
+const Value& getGlobal(const State& state, const char* name) {
+    return state.genv->get(name);
 }
 
 } // namespace xvm

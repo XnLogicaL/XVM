@@ -1,7 +1,7 @@
 // This file is a part of the XVM project
 // Copyright (C) 2025 XnLogical - Licensed under GNU GPL v3.0
 
-#include <Interpreter/Allocator.h>
+#include <Allocator.h>
 
 namespace xvm {
 
@@ -109,11 +109,13 @@ void LinearAllocator<T>::registerDtor(T* const obj) {
     dtorMap[obj] = [obj]() { obj->~T(); };
 }
 
-ByteAllocator::~ByteAllocator() {
+template<typename T>
+ByteAllocator<T>::~ByteAllocator() {
     delete[] buf;
 }
 
-void ByteAllocator::resize() {
+template<typename T>
+void ByteAllocator<T>::resize() {
     auto*  oldbuf = buf;
     size_t oldcap = cap;
 
@@ -124,10 +126,34 @@ void ByteAllocator::resize() {
     delete[] oldbuf;
 }
 
-void* ByteAllocator::alloc(size_t bytes) {
+template<typename T>
+T* ByteAllocator<T>::alloc() {
+    return off++;
+}
+
+template<typename T>
+T* ByteAllocator<T>::allocBytes(size_t bytes) {
     void* oldoff = off;
     off += bytes;
     return oldoff;
+}
+
+template<typename T>
+T* ByteAllocator<T>::fromArray(const T* array) {
+    size_t   len = 0;
+    const T* ptr = array;
+
+    while (*ptr != T{} /* zero value */) {
+        ++ptr;
+        ++len;
+    }
+
+    T* alloca = allocBytes(len + 1);
+
+    std::memcpy(alloca, array, len);
+    std::memset(alloca + len, 0, 1);
+
+    return alloca;
 }
 
 } // namespace xvm

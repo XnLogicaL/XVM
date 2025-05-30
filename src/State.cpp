@@ -3,6 +3,7 @@
 
 #include <Interpreter/State.h>
 #include <Interpreter/ApiImpl.h>
+#include <CoreLib/BaseLib.h>
 
 namespace xvm {
 
@@ -20,12 +21,13 @@ static size_t countLabels(BytecodeHolder& holder) {
 }
 
 static void loadLabels(const State* state) {
-    size_t       lindex = 0;
-    Instruction* pcbase = state->holder.insns.data();
+    size_t lindex = 0;
+
+    const Instruction* pcbase = state->holder.insns.data();
 
     for (size_t counter = 0; const Instruction& insn : state->holder.insns) {
         if (insn.op == LBL)
-            state->laddress_table.data[lindex++] = pcbase + counter;
+            state->lat.data[lindex++] = pcbase + counter;
         ++counter;
     }
 }
@@ -46,48 +48,19 @@ static void loadMainFunction(State* state) {
     state->main = Value(cl);
 }
 
-
-static Callable makeNativeCallable(NativeFn ptr, size_t arity) {
-    Callable c;
-    c.type = CallableKind::Native;
-    c.u.ntv = ptr;
-    c.arity = arity;
-    return c;
-}
-
-static void declareCoreFunction(State* state, const char* id, NativeFn ptr, size_t arity) {
-    Callable c = makeNativeCallable(ptr, arity);
-    Closure* cl = new Closure(std::move(c));
-
-    impl::__setDictField(state->globals, id, Value(cl));
-}
-
-static void declareCoreLib(State* state) {
-    static NativeFn core_print = [](State* state) -> Value {
-        Value* arg0 = impl::__getRegister(state, state->args);
-        std::cout << arg0->to_cxx_string() << "\n";
-        return XVM_NIL;
-    };
-
-    static NativeFn core_error = [](State* state) -> Value {
-        Value* arg0 = impl::__getRegister(state, state->args);
-        impl::__setError(state, arg0->to_cxx_string());
-        return XVM_NIL;
-    };
-
-    declareCoreFunction(state, "print", core_print, 1);
-    declareCoreFunction(state, "error", core_error, 1);
-}
-
 State::State(BytecodeHolder& holder, StkRegFile& regs)
-  : laddress_table(countLabels(holder)),
-    globals(new Dict),
+  : lat(countLabels(holder)),
+    genv(new Dict),
     stk_regf(regs),
-    holder(holder),
-    str_alloc(1024 * 256) {
+    holder(holder) {
+
+    stk_top = stk.data;
+    stk_base = stk.data;
+
+    ci_top = cis.data;
 
     loadLabels(this);
-    declareCoreLib(this);
+    loadBaseLib(this);
     loadMainFunction(this);
 
     // Call main
@@ -95,7 +68,7 @@ State::State(BytecodeHolder& holder, StkRegFile& regs)
 }
 
 State::~State() {
-    delete globals;
+    delete genv;
 }
 
 } // namespace xvm

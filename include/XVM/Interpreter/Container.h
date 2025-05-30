@@ -47,8 +47,8 @@ struct OperandsArray {
  * @brief Lightweight container that is used to store instructions and their data.
  */
 struct BytecodeHolder {
-    std::vector<Instruction>     insns;    ///< Instruction array
-    std::vector<InstructionData> insnData; ///< Instruction data array
+    std::vector<Instruction>     insns; ///< Instruction array
+    std::vector<InstructionData> data;  ///< Instruction data array
 
     /**
      * @brief Pushes a raw instruction and its raw data into their respective containers

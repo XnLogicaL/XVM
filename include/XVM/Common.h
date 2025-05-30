@@ -94,37 +94,39 @@
 #define XVM_UNLIKELY(a)   (__builtin_expect(!!(a), 0))
 #endif
 
+#define XVM_GLOBAL inline
+
 /**
  * Makes the target class or struct uncopyable in terms of copy semantics.
  * Must be used inside class or struct clause.
  */
 #define XVM_NOCOPY(target)                                                                         \
-  target& operator=(const target&) = delete;                                                       \
-  target(const target&) = delete;
+    target& operator=(const target&) = delete;                                                     \
+    target(const target&) = delete;
 
 /**
  * Makes the target class implement custom copy semantics.
  * Must be used inside class or struct clause.
  */
 #define XVM_IMPLCOPY(target)                                                                       \
-  target& operator=(const target&);                                                                \
-  target(const target&);
+    target& operator=(const target&);                                                              \
+    target(const target&);
 
 /**
  * Makes the target class or struct unmovable in terms of move semantics.
  * Must be used inside class or struct clause.
  */
 #define XVM_NOMOVE(target)                                                                         \
-  target& operator=(target&&) = delete;                                                            \
-  target(target&&) = delete;
+    target& operator=(target&&) = delete;                                                          \
+    target(target&&) = delete;
 
 /**
  * Makes the target class implement custom move semantics.
  * Must be used inside class or struct clause.
  */
 #define XVM_IMPLMOVE(target)                                                                       \
-  target& operator=(target&&);                                                                     \
-  target(target&&);
+    target& operator=(target&&);                                                                   \
+    target(target&&);
 
 #if XVM_HASSTACKTRACE == 1
 #define XVM_STACKTRACE std::stacktrace::current()
@@ -138,14 +140,15 @@
  * Uses stderr to buffer the output and then calls std::abort().
  */
 #define XVM_ASSERT(condition, message)                                                             \
-  if (!(condition)) {                                                                              \
-    std::cerr << "XVM_ASSERT(): assertion '" << #condition << "' failed.\n"                        \
-              << "location: " << __FILE__ << ":" << __LINE__ << "\nmessage: " << message << "\n";  \
-    if (XVM_HASSTACKTRACE) {                                                                       \
-      std::cerr << "callstack:\n" << XVM_STACKTRACE << '\n';                                       \
-    }                                                                                              \
-    std::abort();                                                                                  \
-  }
+    if (!(condition)) {                                                                            \
+        std::cerr << "XVM_ASSERT(): assertion '" << #condition << "' failed.\n"                    \
+                  << "location: " << __FILE__ << ":" << __LINE__ << "\nmessage: " << message       \
+                  << "\n";                                                                         \
+        if (XVM_HASSTACKTRACE) {                                                                   \
+            std::cerr << "cstk:\n" << XVM_STACKTRACE << '\n';                                      \
+        }                                                                                          \
+        std::abort();                                                                              \
+    }
 
 #if XVMC == CGCC
 #pragma GCC diagnostic pop
