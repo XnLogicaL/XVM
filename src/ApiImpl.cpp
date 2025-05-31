@@ -46,7 +46,7 @@ void __eclear(State* state) {
     state->einfo->error = false;
 }
 
-bool __ehas(const State* state) {
+bool __echeck(const State* state) {
     return state->einfo->error;
 }
 
@@ -104,28 +104,22 @@ Value __getConstant(const State* state, size_t index) {
     return XVM_NIL;
 }
 
-Value __type(const Value& val) {
+std::string __type(const Value& val) {
     using enum ValueKind;
-    const char* type = NULL;
 
     // clang-format off
     switch (val.type) {
-    case Nil:      type = "nil"; break;
-    case Int:      type = "int"; break;
-    case Float:    type = "float"; break;
-    case Bool:     type = "bool"; break;
-    case String:   type = "string"; break;
-    case Function: type = "function"; break;
-    case Array:    type = "array"; break;
-    case Dict:     type = "dict"; break;
+    case Nil:      return "nil";
+    case Int:      return "int";
+    case Float:    return "float";
+    case Bool:     return "bool";
+    case String:   return "string";
+    case Function: return "function";
+    case Array:    return "array";
+    case Dict:     return "dict";
     } // clang-format on
 
-    return Value(new struct String(type));
-}
-
-std::string __type_cxx_string(const Value& val) {
-    Value _Type = __type(val);
-    return std::string(_Type.u.str->data);
+    XVM_UNREACHABLE();
 }
 
 void* __toPointer(const Value& val) {
@@ -198,88 +192,58 @@ void __return(State* XVM_RESTRICT state, Value&& retv) {
     __cipop(state);
 }
 
-Value __length(Value& val) {
+int __length(Value& val) {
     if (val.is_string())
-        return Value(static_cast<int>(val.u.str->size));
+        return (int)val.u.str->size;
     else if (val.is_array() || val.is_dict()) {
         size_t len = val.is_array() ? __getArraySize(val.u.arr) : __getDictSize(val.u.dict);
-        return Value(static_cast<int>(len));
+        return (int)len;
     }
 
-    return XVM_NIL;
+    return -1;
 }
 
-int __cxxlength(Value& val) {
-    Value len = __length(val);
-    return len.is_nil() ? -1 : len.u.i;
-}
-
-Value __toString(const Value& val) {
+std::string __toString(const Value& val) {
     using enum ValueKind;
 
     if (val.is_string()) {
-        return val.clone();
+        return val.u.str->data;
     }
 
     switch (val.type) {
-    case Int: {
-        std::string str = std::to_string(val.u.i);
-        return Value(new struct String(str.c_str()));
-    }
-    case Float: {
-        std::string str = std::to_string(val.u.f);
-        return Value(new struct String(str.c_str()));
-    }
+    case Int:
+        return std::to_string(val.u.i);
+    case Float:
+        return std::to_string(val.u.f);
     case Bool:
-        return Value(new struct String(val.u.b ? "true" : "false"));
+        return val.u.b ? "true" : "false";
     case Array:
-    case Dict: {
-        auto type_str = __type_cxx_string(val);
-        auto final_str = std::format("<{}@0x{:x}>", type_str, (uintptr_t)__toPointer(val));
-
-        return Value(new struct String(final_str.c_str()));
-    }
-
+    case Dict:
+        return std::format("<{}@0x{:x}>", __type(val), (uintptr_t)__toPointer(val));
     case Function: {
-        std::string fnty = "native";
-        std::string fnn = "";
+        std::string type = "native";
+        std::string id = "";
 
         if (val.u.clsr->callee.type == CallableKind::Function) {
-            fnty = "function ";
-            fnn = val.u.clsr->callee.u.fn.id;
+            type = "function ";
+            id = val.u.clsr->callee.u.fn.id;
         }
 
-        std::string final_str = std::format("<{}{}@0x{:x}>", fnty, fnn, (uintptr_t)val.u.clsr);
-        return Value(new struct String(final_str.c_str()));
+        return std::format("<{}{}@0x{:x}>", type, id, (uintptr_t)val.u.clsr);
     }
     default:
-        return Value(new struct String("nil"));
+        return "nil";
     }
 
     XVM_UNREACHABLE();
-    return XVM_NIL;
 }
 
-std::string __toCxxString(const Value& val) {
-    Value str = __toString(val);
-    return std::string(str.u.str->data);
-}
-
-std::string __toLitCxxString(const Value& val) {
-    Value str = __toString(val);
-    return xvm::stresc(str.u.str->data);
-}
-
-Value __toBool(const Value& val) {
+bool __toBool(const Value& val) {
     if (val.is_bool()) {
-        return val.clone();
+        return val.u.b;
     }
 
-    return Value(val.type != ValueKind::Nil);
-}
-
-bool __toCxxBool(const Value& val) {
-    return __toBool(val).u.b;
+    return val.type != ValueKind::Nil;
 }
 
 Value __toInt(State* state, const Value& val) {
@@ -311,8 +275,7 @@ Value __toInt(State* state, const Value& val) {
         break;
     }
 
-    auto type = __toCxxString(val);
-    __ethrow(state, std::format("Failed to cast {} into Int", type));
+    __ethrowf(state, "Failed to cast {} into Int", __type(val));
     return XVM_NIL;
 }
 
@@ -345,8 +308,7 @@ Value __toFloat(State* state, const Value& val) {
         break;
     }
 
-    auto type = __type_cxx_string(val);
-    __ethrow(state, std::format("Failed to cast {} to float", type));
+    __ethrowf(state, "Failed to cast {} to float", __type(val));
     return XVM_NIL;
 }
 

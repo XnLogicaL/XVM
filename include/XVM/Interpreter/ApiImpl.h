@@ -47,6 +47,18 @@ std::string __getFuncSig(const Callable& func);
  */
 void __ethrow(State* state, const std::string& message);
 
+template<typename... Args>
+void __ethrowf(State* state, const std::string& fmt, Args&&... args) {
+    try {
+        auto str = std::vformat(fmt, std::make_format_args(std::forward<Args>(args)...));
+        __ethrow(state, str);
+    }
+    catch (const std::format_error&) {
+        // This function is the only exception to non-assertive implementation functions.
+        XVM_ASSERT(false, "__ethrowf: Invalid format string")
+    }
+}
+
 /**
  * @brief Clears any existing error state in the interpreter.
  * @param state Interpreter state.
@@ -58,7 +70,7 @@ void __eclear(State* state);
  * @param state Interpreter state.
  * @return true if an error is currently set; false otherwise.
  */
-bool __ehas(const State* state);
+bool __echeck(const State* state);
 
 /**
  * @brief Handles a currently active error by unwinding the call stack.
@@ -79,16 +91,9 @@ Value __getConstant(const State* state, size_t index);
 /**
  * @brief Returns the type of a value as a xvm string object.
  * @param val The value to inspect.
- * @return Type as a xvm string Value.
+ * @return Type as an std::string
  */
-Value __type(const Value& val);
-
-/**
- * @brief Returns the type of a value as a C++ string.
- * @param val The value to inspect.
- * @return Type as std::string.
- */
-std::string __cxxtype(const Value& val);
+std::string __type(const Value& val);
 
 /**
  * @brief Gets the raw pointer stored in a value, or NULL if not applicable.
@@ -140,19 +145,9 @@ void __return(State* XVM_RESTRICT state, Value&& retv);
  * Supports arrays, strings, and dictionaries. Returns Nil if length cannot be determined.
  *
  * @param val The value to get the length of.
- * @return Value Length as an integer Value or Nil.
+ * @return Value Length as an `int`, -1 if impossible.
  */
-Value __length(const Value& val);
-
-/**
- * @brief Returns the length of the given value as a C++ integer.
- *
- * Returns -1 if the value has no meaningful length (e.g., number, bool, nil).
- *
- * @param val The value to get the length of.
- * @return int Length or -1 on failure.
- */
-int __cxxlength(const Value& val);
+int __length(const Value& val);
 
 /**
  * @brief Converts the given value to a language-level String object.
@@ -160,29 +155,9 @@ int __cxxlength(const Value& val);
  * Uses the value's stringification rules defined by the VM or language runtime.
  *
  * @param val The value to convert.
- * @return Value The value as a String object.
+ * @return Value The value as an std::string.
  */
-Value __toString(const Value& val);
-
-/**
- * @brief Converts the given value to a C++ `std::string`.
- *
- * Performs the same logic as `__toString`, but returns a native string.
- *
- * @param val The value to convert.
- * @return std::string The stringified value.
- */
-std::string __toCxxString(const Value& val);
-
-/**
- * @brief Converts the value to a literal string without applying any escaping or transformation.
- *
- * Useful for printing raw string content.
- *
- * @param val The value to convert.
- * @return std::string The raw literal string.
- */
-std::string __toLitCxxString(const Value& val);
+std::string __toString(const Value& val);
 
 /**
  * @brief Converts a value to its boolean representation.
@@ -194,17 +169,7 @@ std::string __toLitCxxString(const Value& val);
  * @param val The value to evaluate.
  * @return Value A boolean Value representing the truthiness.
  */
-Value __toBool(const Value& val);
-
-/**
- * @brief Returns the truthiness of a value as a native `bool`.
- *
- * Same logic as `__toBool`, but returns a C++ boolean.
- *
- * @param val The value to evaluate.
- * @return bool True if value is truthy, false otherwise.
- */
-bool __toCxxBool(const Value& val);
+bool __toBool(const Value& val);
 
 /**
  * @brief Converts the given value to an integer Value or returns Nil if not possible.

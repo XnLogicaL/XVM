@@ -12,6 +12,13 @@
         VM_NEXT();                                                                                 \
     }
 
+#define VM_ERRORF(message, ...)                                                                    \
+    {                                                                                              \
+        __ethrowf(state, message, __VA_ARGS__);                                                    \
+        VM_NEXT();                                                                                 \
+    }
+
+
 #define VM_DISPATCH()                                                                              \
     if constexpr (SingleStep) {                                                                    \
         goto exit;                                                                                 \
@@ -34,7 +41,7 @@
     }
 
 #define VM_CHECK_RETURN()                                                                          \
-    if XVM_UNLIKELY (state->cstk->sp == 0) {                                                       \
+    if XVM_UNLIKELY (state->ci_top == state->cis.data) {                                           \
         goto exit;                                                                                 \
     }
 
@@ -179,7 +186,7 @@ static void execute(State* state, Instruction insn = Instruction()) {
 #endif
 
 dispatch:
-    Instruction* pc = state->pc;
+    const Instruction* pc = state->pc;
 
     // Check for errors and attempt handling them.
     // The __ehandle function works by unwinding the stack until
@@ -188,7 +195,7 @@ dispatch:
     // under any circumstances. Therefore the error will act as a fatal
     // error, being automatically thrown by __ehandle, along with a
     // cstk and debug information.
-    if (__ehas(state) && !__ehandle(state)) {
+    if (__echeck(state) && !__ehandle(state)) {
         goto exit;
     }
 
@@ -417,7 +424,7 @@ dispatch:
             uint16_t ra = state->pc->a;
             uint16_t ib = state->pc->b;
 
-            UpValue* upv = __getClosureUpv(__callframe(state)->closure, ib);
+            UpValue* upv = __getClosureUpv((state->ci_top - 1)->closure, ib);
 
             __setRegister(state, ra, upv->value->clone());
             VM_NEXT();
@@ -429,7 +436,7 @@ dispatch:
 
             Value* val = __getRegister(state, ra);
 
-            __setClosureUpv(__callframe(state)->closure, upv_id, *val);
+            __setClosureUpv((state->ci_top - 1)->closure, upv_id, *val);
             VM_NEXT();
         }
 
@@ -502,7 +509,8 @@ dispatch:
         VM_CASE(GETARG) {
             uint16_t ra = state->pc->a;
             uint16_t off = state->pc->b;
-            Value*   val = __getRegister(state, state->args + off);
+
+            StkId val = state->stk_base - off - 1;
 
             __setRegister(state, ra, val->clone());
             VM_NEXT();
@@ -611,7 +619,7 @@ dispatch:
 
             Value* lhs = __getRegister(state, rb);
             Value* rhs = __getRegister(state, rc);
-            bool   cond = __toCxxBool(*lhs) && __toCxxBool(*rhs);
+            bool   cond = __toBool(*lhs) && __toBool(*rhs);
 
             __setRegister(state, ra, Value(cond));
             VM_NEXT();
@@ -624,7 +632,7 @@ dispatch:
 
             Value* lhs = __getRegister(state, rb);
             Value* rhs = __getRegister(state, rc);
-            bool   cond = __toCxxBool(*lhs) || __toCxxBool(*rhs);
+            bool   cond = __toBool(*lhs) || __toBool(*rhs);
 
             __setRegister(state, ra, Value(cond));
             VM_NEXT();
@@ -635,7 +643,7 @@ dispatch:
             uint16_t rb = state->pc->b;
 
             Value* lhs = __getRegister(state, rb);
-            bool   cond = !__toCxxBool(*lhs);
+            bool   cond = !__toBool(*lhs);
 
             __setRegister(state, ra, Value(cond));
             VM_NEXT();
@@ -768,7 +776,7 @@ dispatch:
             int16_t  offset = state->pc->b;
 
             Value* cond_val = __getRegister(state, cond);
-            if (__toCxxBool(*cond_val)) {
+            if (__toBool(*cond_val)) {
                 state->pc += offset;
                 goto dispatch;
             }
@@ -781,7 +789,7 @@ dispatch:
             int16_t  offset = state->pc->b;
 
             Value* cond_val = __getRegister(state, cond);
-            if (!__toCxxBool(*cond_val)) {
+            if (!__toBool(*cond_val)) {
                 state->pc += offset;
                 goto dispatch;
             }
@@ -1006,7 +1014,7 @@ dispatch:
             uint16_t label = state->pc->b;
 
             Value* cond_val = __getRegister(state, cond);
-            if (__toCxxBool(*cond_val)) {
+            if (__toBool(*cond_val)) {
                 state->pc = __getLabelAddress(state, label);
                 goto dispatch;
             }
@@ -1019,7 +1027,7 @@ dispatch:
             uint16_t label = state->pc->b;
 
             Value* cond_val = __getRegister(state, cond);
-            if (!__toCxxBool(*cond_val)) {
+            if (!__toBool(*cond_val)) {
                 state->pc = __getLabelAddress(state, label);
                 goto dispatch;
             }
@@ -1233,13 +1241,8 @@ dispatch:
 
         VM_CASE(CALL) {
             uint16_t fn = state->pc->a;
-            uint16_t ap = state->pc->b;
-            uint16_t rr = state->pc->c;
 
             Value* fn_val = __getRegister(state, fn);
-
-            state->args = ap;
-            state->ret = rr;
 
             __call(state, fn_val->u.clsr);
 
@@ -1256,9 +1259,6 @@ dispatch:
 
             Value* fn_val = __getRegister(state, fn);
 
-            state->args = ap;
-            state->ret = rr;
-
             __pcall(state, fn_val->u.clsr);
 
             if constexpr (SingleStep)
@@ -1268,7 +1268,7 @@ dispatch:
         }
 
         VM_CASE(RETNIL) {
-            __closeClosureUpvs(__callframe(state)->closure);
+            __closeClosureUpvs((state->ci_top - 1)->closure);
             __return(state, XVM_NIL);
 
             VM_CHECK_RETURN();
@@ -1448,9 +1448,9 @@ dispatch:
             uint16_t rb = state->pc->b;
 
             Value* target = __getRegister(state, rb);
-            Value  result = __toString(*target);
+            auto   result = __toString(*target);
 
-            __setRegister(state, ra, std::move(result));
+            __setRegister(state, ra, Value(new String(result.c_str())));
             VM_NEXT();
         }
 
@@ -1459,9 +1459,9 @@ dispatch:
             uint16_t rb = state->pc->b;
 
             Value* target = __getRegister(state, rb);
-            Value  result = __toBool(*target);
+            auto   result = __toString(*target);
 
-            __setRegister(state, ra, std::move(result));
+            __setRegister(state, ra, Value(new String(result.c_str())));
             VM_NEXT();
         }
     }
@@ -1469,12 +1469,12 @@ dispatch:
 exit:;
 }
 
-void State::execute() {
-    execute<false, false>(this);
+void execute(State& state) {
+    execute<false, false>(&state);
 }
 
-void State::executeStep(std::optional<Instruction> insn) {
-    insn.has_value() ? execute<true, true>(this, *insn) : execute<true, false>(this);
+void executeStep(State& state, std::optional<Instruction> insn) {
+    insn.has_value() ? execute<true, true>(&state, *insn) : execute<true, false>(&state);
 }
 
 } // namespace xvm
