@@ -399,9 +399,13 @@ void __drop(State* state);
  * @param offset Stack frame offset.
  * @return Value* Pointer to local value.
  */
-StkId __getLocal(State* XVM_RESTRICT state, size_t offset);
+StkId __getLocal(State* state, size_t offset);
 
-const StkId __getLocal(const State* XVM_RESTRICT state, size_t offset);
+const StkId __getLocal(const State* state, size_t offset);
+
+StkId __getArgument(State* state, size_t offset);
+
+const StkId __getArgument(const State* state, size_t offset);
 
 /**
  * @brief Sets a local variable at a given offset.

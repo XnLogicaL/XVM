@@ -644,8 +644,20 @@ void __drop(State* state) {
     state->stk_top->reset();
 }
 
-Value* __getLocal(State* XVM_RESTRICT state, size_t offset) {
+StkId __getLocal(State* state, size_t offset) {
     return state->stk_base + offset - 1;
+}
+
+const StkId __getLocal(const State* state, size_t offset) {
+    return state->stk_base + offset + 1;
+}
+
+StkId __getArgument(State* state, size_t offset) {
+    return state->stk_base - offset;
+}
+
+const StkId __getArgument(const State* state, size_t offset) {
+    return state->stk_base - offset;
 }
 
 void __setLocal(State* XVM_RESTRICT state, size_t offset, Value&& val) {
