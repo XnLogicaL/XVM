@@ -1,6 +1,40 @@
 # XVM
 General purpose cross-platform customizable scripting language runtime
 
+# Features
+
+## Performance
+
+- XVM performs around 1.5-2x better than Lua on average. (TODO: ADD BENCH)
+- XVM utilizes C++ RAII in a performant way to ensure maximum memory efficiency and minimal allocations/deallocations to ensure maximum performance during runtime.
+
+## Register/stack hybrid interpreter
+
+XVM utilizes a register-based bytecode format, while using the stack for allocation variables and calling functions.
+
+## Advanced C++ interoperability
+
+XVM is written in C++23, and has an advanced API to make it as embedable as possible. The C++ API is capable of all functionality (and more) that the bytecode interpreter is, as they use the same internal API.
+
+## Efficient data types
+
+XVM features the following data types as built-in values:
+- Integer (32-bit)
+- IEEE-754 Float (32-bit) 
+- Boolean
+- String
+- Array
+- Dictionary
+- Function/closure (native functions included)
+
+## Runtime label addressing
+
+XVM features a label address table that can be used to address labels during runtime. Labels are "declared" using the special `LBL` opcode, which is completely identical to a NOP instruction.
+
+## CISC-like bytecode instruction set
+
+XVM features a quite sizable instruction set with 16-bit addressable opcodes. It has a lot of combination opcodes like `JLIFGTEQ` (jump to label if greater than or equal to) and `IADD` (add integer to value in register).
+
 # Examples
 
 ```cpp
