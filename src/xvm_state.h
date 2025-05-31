@@ -18,7 +18,6 @@
 #include "xvm_instruction.h"
 #include "xvm_value.h"
 #include "xvm_allocator.h"
-#include "xvm_container.h"
 
 /**
  * @namespace xvm
@@ -82,8 +81,9 @@ using SpillRegFile = RegFile<kHeapRegCount>;
  */
 // clang-format off
 struct alignas(64) State {
-    const BytecodeHolder& bc_holder;                    ///< Bytecode array
-    const ConstantHolder& k_holder;                     ///< Constant array
+    const std::vector<Value>& k_holder;                 ///< Constant array
+    const std::vector<Instruction>& bc_holder;          ///< Bytecode array
+    const std::vector<InstructionData>& bc_info_holder;    
 
     StkRegFile& stk_regf;                               ///< Stack register file
 
@@ -114,7 +114,13 @@ struct alignas(64) State {
     // therefore are not default constructible.
     State() = delete;
 
-    State(ConstantHolder& k_holder, BytecodeHolder& bc_holder, StkRegFile& file);
+    explicit State(
+        const std::vector<Value>& k_holder,
+        const std::vector<Instruction>& bc_holder,
+        const std::vector<InstructionData>& bc_info_holder,
+        StkRegFile& file
+    );
+
     ~State();
 };
 // clang-format on

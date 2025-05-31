@@ -9,11 +9,11 @@ namespace xvm {
 
 using enum Opcode;
 
-static size_t countLabels(BytecodeHolder& holder) {
+static size_t countLabels(const std::vector<Instruction>& holder) {
     size_t lcount = 0;
 
-    for (const auto* ptr = holder.getCode(); ptr < holder.getCode() + holder.getCodeSize(); ptr++) {
-        if (ptr->op == LBL)
+    for (const Instruction& insn : holder) {
+        if (insn.op == LBL)
             lcount++;
     }
 
@@ -23,12 +23,9 @@ static size_t countLabels(BytecodeHolder& holder) {
 static void loadLabels(const State* state) {
     size_t lindex = 0;
 
-    const BytecodeHolder& holder = state->bc_holder;
-    const Instruction*    pcbase = state->bc_holder.getCode();
-    for (const auto* ptr = holder.getCode(); ptr < holder.getCode() + holder.getCodeSize(); ptr++) {
-        if (ptr->op == LBL) {
-            size_t off = ptr - holder.getCode();
-            state->lat.data[off] = ptr;
+    for (const Instruction& insn : state->bc_holder) {
+        if (insn.op == LBL) {
+            state->lat.data[lindex++] = &insn;
         }
     }
 }
@@ -37,8 +34,8 @@ static void loadMainFunction(State* state) {
     Function fun;
     fun.id = "main";
     fun.line = 0;
-    fun.code = state->bc_holder.getCode();
-    fun.size = state->bc_holder.getCodeSize();
+    fun.code = state->bc_holder.data();
+    fun.size = state->bc_holder.size();
 
     Callable c;
     c.type = CallableKind::Function;
@@ -49,12 +46,18 @@ static void loadMainFunction(State* state) {
     state->main = Value(cl);
 }
 
-State::State(ConstantHolder& k_holder, BytecodeHolder& bc_holder, StkRegFile& regs)
+State::State(
+  const std::vector<Value>&           k_holder,
+  const std::vector<Instruction>&     bc_holder,
+  const std::vector<InstructionData>& bc_info_holder,
+  StkRegFile&                         regs
+)
   : lat(countLabels(bc_holder)),
     genv(new Dict),
     stk_regf(regs),
     k_holder(k_holder),
-    bc_holder(bc_holder) {
+    bc_holder(bc_holder),
+    bc_info_holder(bc_info_holder) {
 
     stk_top = stk.data;
     stk_base = stk.data;
