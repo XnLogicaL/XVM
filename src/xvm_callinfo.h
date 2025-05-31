@@ -13,8 +13,8 @@
 #ifndef XVM_CALL_STACK_H
 #define XVM_CALL_STACK_H
 
-#include <Common.h>
-#include <Interpreter/TClosure.h>
+#include "xvm_common.h"
+#include "xvm_closure.h"
 
 /**
  * @namespace xvm
@@ -38,15 +38,9 @@ namespace xvm {
 struct CallInfo {
     bool     protect = false; ///< Protect callframe from errors
     Closure* closure = NULL;  ///< Function closure being invoked.
+    Value*   stk_top = NULL;  ///< Stack top when function was called
 
-    const Instruction* pc = NULL;      ///< Program counter when function was called
-    Value*             stk_top = NULL; ///< Stack top when function was called
-
-    XVM_NOCOPY(CallInfo);   ///< Disable copy constructor and copy assignment.
-    XVM_IMPLMOVE(CallInfo); ///< Enable move constructor and move assignment.
-
-    CallInfo();
-    ~CallInfo();
+    const Instruction* pc = NULL; ///< Program counter when function was called
 };
 
 } // namespace xvm

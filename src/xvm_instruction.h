@@ -12,8 +12,8 @@
 #ifndef XVM_INSTRUCTION_H
 #define XVM_INSTRUCTION_H
 
-#include <Common.h>
-#include <Interpreter/Opcode.h>
+#include "xvm_common.h"
+#include "xvm_opcode.h"
 #include <cstdint>
 
 /**
@@ -50,10 +50,10 @@ struct InstructionData {
  * The structure is aligned to 8 bytes to optimize for memory layout and access efficiency.
  */
 struct alignas(8) Instruction {
-    Opcode   op = Opcode::NOP;     ///< Operation code (e.g., ADD, LOAD, CALL).
-    uint16_t a  = OPERAND_INVALID; ///< First operand (typically a register or constant index).
-    uint16_t b  = OPERAND_INVALID; ///< Second operand.
-    uint16_t c  = OPERAND_INVALID; ///< Third operand.
+    Opcode   op = Opcode::NOP;    ///< Operation code (e.g., ADD, LOAD, CALL).
+    uint16_t a = OPERAND_INVALID; ///< First operand (typically a register or constant index).
+    uint16_t b = OPERAND_INVALID; ///< Second operand.
+    uint16_t c = OPERAND_INVALID; ///< Third operand.
 };
 
 } // namespace xvm

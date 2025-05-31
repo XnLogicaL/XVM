@@ -12,7 +12,7 @@
 #ifndef XVM_OBJECT_H
 #define XVM_OBJECT_H
 
-#include <Common.h>
+#include "xvm_common.h"
 
 // MSVC is annoying with uninitialized members
 #if XVMC == CMSVC
@@ -92,51 +92,6 @@ struct alignas(8) Value {
 
     Value clone() const; ///< Deep copy of the value.
     void  reset();       ///< Clears the value and resets to Nil.
-
-    // clang-format off
-    XVM_NODISCARD XVM_FORCEINLINE constexpr bool is(ValueKind other) const { return type == other; }
-    XVM_NODISCARD XVM_FORCEINLINE constexpr bool is_nil() const { return is(ValueKind::Nil); }
-    XVM_NODISCARD XVM_FORCEINLINE constexpr bool is_bool() const { return is(ValueKind::Bool); }
-    XVM_NODISCARD XVM_FORCEINLINE constexpr bool is_int() const { return is(ValueKind::Int); }
-    XVM_NODISCARD XVM_FORCEINLINE constexpr bool is_float() const { return is(ValueKind::Float); }
-    XVM_NODISCARD XVM_FORCEINLINE constexpr bool is_number() const { return is_int() || is_float(); }
-    XVM_NODISCARD XVM_FORCEINLINE constexpr bool is_string() const { return is(ValueKind::String); }
-    XVM_NODISCARD XVM_FORCEINLINE constexpr bool is_array() const { return is(ValueKind::Array); }
-    XVM_NODISCARD XVM_FORCEINLINE constexpr bool is_dict() const { return is(ValueKind::Dict); }
-    XVM_NODISCARD XVM_FORCEINLINE constexpr bool is_subscriptable() const { return is_string() || is_array() || is_dict(); }
-    XVM_NODISCARD XVM_FORCEINLINE constexpr bool is_function() const { return is(ValueKind::Function); }
-    // clang-format on
-
-    // Conversions
-    XVM_NODISCARD Value to_integer() const; ///< Attempts to convert to Int.
-    XVM_NODISCARD Value to_float() const;   ///< Attempts to convert to Float.
-    XVM_NODISCARD Value to_boolean() const; ///< Converts to Bool (truthiness).
-    XVM_NODISCARD Value to_string() const;  ///< Converts to a String object.
-
-    XVM_NODISCARD std::string to_cxx_string() const;         ///< Converts to a std::string.
-    XVM_NODISCARD std::string to_literal_cxx_string() const; ///< String with literals escaped.
-
-    // Type representation
-    XVM_NODISCARD Value type_string() const;           ///< Returns type name as xvm::String.
-    XVM_NODISCARD std::string type_cxx_string() const; ///< Returns type name as std::string.
-
-    /**
-     * @brief Attempts to obtain a raw pointer for the value.
-     *
-     * Only heap-allocated types (e.g., strings, arrays, dicts, closures) will
-     * return a valid pointer. Used primarily for hashing and identity checks.
-     *
-     * @return Pointer or NULL.
-     */
-    XVM_NODISCARD void* to_pointer() const;
-
-    // Length functions
-    XVM_NODISCARD Value  length() const;     ///< Returns the "length" of value if possible.
-    XVM_NODISCARD size_t cxx_length() const; ///< Returns native length.
-
-    // Comparison
-    XVM_NODISCARD bool compare(const Value& other) const;      ///< Shallow equality check.
-    XVM_NODISCARD bool deep_compare(const Value& other) const; ///< Deep equality check.
 };
 
 } // namespace xvm

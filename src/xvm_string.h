@@ -11,7 +11,7 @@
 #ifndef XVM_STRING_H
 #define XVM_STRING_H
 
-#include <Common.h>
+#include "xvm_common.h"
 
 /**
  * @namespace xvm

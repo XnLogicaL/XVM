@@ -11,9 +11,9 @@
 #ifndef XVM_ARRAY_H
 #define XVM_ARRAY_H
 
-#include <common.h>
-#include <Interpreter/CSize.h>
-#include <Interpreter/TValue.h>
+#include "xvm_common.h"
+#include "xvm_csize.h"
+#include "xvm_value.h"
 
 /**
  * @namespace xvm
@@ -37,9 +37,9 @@ inline constexpr size_t ARRAY_INITAL_CAPACITY = 64;
  * delegated to the `CSize` helper, which tracks the logical size and performs bounds checks.
  */
 struct Array {
-    Value* data     = NULL;                  ///< Pointer to array data buffer.
+    Value* data = NULL;                      ///< Pointer to array data buffer.
     size_t capacity = ARRAY_INITAL_CAPACITY; ///< Allocated capacity.
-    CSize  csize    = {};                    ///< Logical size and resizing helper.
+    CSize  csize = {};                       ///< Logical size and resizing helper.
 
     XVM_IMPLCOPY(Array);
     XVM_IMPLMOVE(Array);

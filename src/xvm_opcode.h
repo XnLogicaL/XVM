@@ -4,7 +4,7 @@
 #ifndef XVM_OPCODE_H
 #define XVM_OPCODE_H
 
-#include "common.h"
+#include "xvm_common.h"
 
 /**
  * @namespace xvm

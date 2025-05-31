@@ -4,10 +4,10 @@
 #ifndef XVM_BASELIB_H
 #define XVM_BASELIB_H
 
-#include <Common.h>
-#include <CoreLib/Shared.h>
-#include <Interpreter/ApiImpl.h>
-#include <Interpreter/State.h>
+#include "xvm_common.h"
+#include "xvm_lib_shared.h"
+#include "xvm_api_impl.h"
+#include "xvm_state.h"
 
 namespace xvm {
 

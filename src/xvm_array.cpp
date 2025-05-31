@@ -1,8 +1,8 @@
 // This file is a part of the XVM project
 // Copyright (C) 2025 XnLogical - Licensed under GNU GPL v3.0
 
-#include <Interpreter/TArray.h>
-#include <Interpreter/ApiImpl.h>
+#include "xvm_array.h"
+#include "xvm_api_impl.h"
 
 namespace xvm {
 

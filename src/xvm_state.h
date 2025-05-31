@@ -13,12 +13,12 @@
 #ifndef XVM_STATE_H
 #define XVM_STATE_H
 
-#include <Common.h>
-#include <Interpreter/Callstack.h>
-#include <Interpreter/Instruction.h>
-#include <Interpreter/TValue.h>
-#include <Allocator.h>
-#include <Interpreter/Container.h>
+#include "xvm_common.h"
+#include "xvm_callinfo.h"
+#include "xvm_instruction.h"
+#include "xvm_value.h"
+#include "xvm_allocator.h"
+#include "xvm_container.h"
 
 /**
  * @namespace xvm

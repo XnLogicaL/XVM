@@ -4,8 +4,8 @@
 #ifndef XVM_API_H
 #define XVM_API_H
 
-#include <Common.h>
-#include <Interpreter/State.h>
+#include "xvm_common.h"
+#include "xvm_state.h"
 
 namespace xvm {
 

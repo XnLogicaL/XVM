@@ -11,12 +11,12 @@
 #ifndef XVM_API_IMPL_H
 #define XVM_API_IMPL_H
 
-#include <Common.h>
-#include <Interpreter/Opcode.h>
-#include <Interpreter/State.h>
-#include <Interpreter/TDict.h>
-#include <Interpreter/TArray.h>
-#include <Interpreter/TClosure.h>
+#include "xvm_common.h"
+#include "xvm_opcode.h"
+#include "xvm_state.h"
+#include "xvm_dict.h"
+#include "xvm_array.h"
+#include "xvm_closure.h"
 
 /**
  * @namespace xvm

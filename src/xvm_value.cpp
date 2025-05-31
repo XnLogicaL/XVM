@@ -1,12 +1,12 @@
 // This file is a part of the XVM project
 // Copyright (C) 2025 XnLogical - Licensed under GNU GPL v3.0
 
-#include <Interpreter/TValue.h>
-#include <Interpreter/TString.h>
-#include <Interpreter/TArray.h>
-#include <Interpreter/TDict.h>
-#include <Interpreter/TClosure.h>
-#include <Interpreter/ApiImpl.h>
+#include "xvm_value.h"
+#include "xvm_string.h"
+#include "xvm_array.h"
+#include "xvm_dict.h"
+#include "xvm_closure.h"
+#include "xvm_api_impl.h"
 
 namespace xvm {
 
@@ -117,26 +117,6 @@ void Value::reset() {
 
     type = Nil;
     u = {};
-}
-
-XVM_NODISCARD bool Value::compare(const Value& other) const {
-    return impl::__compare(*this, other);
-}
-
-XVM_NODISCARD bool Value::deep_compare(const Value& other) const {
-    return impl::__compareDeep(*this, other);
-}
-
-XVM_NODISCARD Value Value::to_string() const {
-    return impl::__toString(*this);
-}
-
-XVM_NODISCARD std::string Value::to_cxx_string() const {
-    return impl::toCxxString(*this);
-}
-
-XVM_NODISCARD std::string Value::to_literal_cxx_string() const {
-    return impl::__toLitCxxString(*this);
 }
 
 } // namespace xvm

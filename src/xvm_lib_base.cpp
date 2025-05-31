@@ -1,7 +1,7 @@
 // This file is a part of the XVM project
 // Copyright (C) 2025 XnLogical - Licensed under GNU GPL v3.0
 
-#include <CoreLib/BaseLib.h>
+#include "xvm_lib_base.h"
 
 namespace xvm {
 

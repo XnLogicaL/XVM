@@ -7,8 +7,8 @@
 #ifndef XVM_CONTAINER_H
 #define XVM_CONTAINER_H
 
-#include <Common.h>
-#include <Interpreter/Instruction.h>
+#include "xvm_common.h"
+#include "xvm_instruction.h"
 
 /**
  * @namespace xvm

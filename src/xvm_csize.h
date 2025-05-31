@@ -8,7 +8,7 @@
 #ifndef XVM_CSIZE_H
 #define XVM_CSIZE_H
 
-#include <Common.h>
+#include "xvm_common.h"
 
 /**
  * @namespace xvm

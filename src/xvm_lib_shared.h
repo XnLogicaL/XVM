@@ -4,8 +4,8 @@
 #ifndef XVM_SHARED_H
 #define XVM_SHARED_H
 
-#include <Common.h>
-#include <Interpreter/State.h>
+#include "xvm_common.h"
+#include "xvm_state.h"
 
 namespace xvm {
 

@@ -4,7 +4,7 @@
 #ifndef XVM_ALLOCATOR_H
 #define XVM_ALLOCATOR_H
 
-#include <Common.h>
+#include "xvm_common.h"
 
 namespace xvm {
 

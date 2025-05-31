@@ -12,9 +12,9 @@
 #ifndef XVM_FUNCTION_H
 #define XVM_FUNCTION_H
 
-#include <Common.h>
-#include <Interpreter/Instruction.h>
-#include <Interpreter/TValue.h>
+#include "xvm_common.h"
+#include "xvm_instruction.h"
+#include "xvm_value.h"
 
 /**
  * @namespace xvm

@@ -1,8 +1,8 @@
 // This file is a part of the XVM project
 // Copyright (C) 2025 XnLogical - Licensed under GNU GPL v3.0
 
-#include <Interpreter/ApiImpl.h>
-#include <Interpreter/TString.h>
+#include "xvm_api_impl.h"
+#include "xvm_string.h"
 #include <cmath>
 
 namespace xvm {

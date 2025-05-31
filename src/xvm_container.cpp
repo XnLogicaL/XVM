@@ -1,7 +1,7 @@
 // This file is a part of the XVM Project
 // Copyright (C) 2024-2025 XnLogical - Licensed under GNU GPL v3.0
 
-#include <Interpreter/Container.h>
+#include "xvm_container.h"
 
 namespace xvm {
 
