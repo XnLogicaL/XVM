@@ -89,9 +89,6 @@ struct alignas(8) Value {
     explicit Value(Array* ptr);   ///< Constructs an Array.
     explicit Value(Dict* ptr);    ///< Constructs a Dict.
     explicit Value(Closure* ptr); ///< Constructs a Closure.
-
-    Value clone() const; ///< Deep copy of the value.
-    void  reset();       ///< Clears the value and resets to Nil.
 };
 
 } // namespace xvm

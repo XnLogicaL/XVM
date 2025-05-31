@@ -118,22 +118,4 @@ String& String::operator=(String&& other) {
     return *this;
 }
 
-void String::set(size_t position, const String& value) {
-    XVM_ASSERT(position < size, "String index position out of bounds");
-    XVM_ASSERT(value.size == 1, "Setting String index to non-character String");
-
-    data[position] = value.data[0];
-    // Refresh hash as the string was mutated
-    hash = xvm::strhash(data);
-}
-
-String String::get(size_t position) {
-    XVM_ASSERT(position < size, "String index position out of bounds");
-
-    char chr = data[position];
-    char str[] = {chr, '\0'};
-
-    return String(str);
-}
-
 } // namespace xvm

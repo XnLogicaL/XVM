@@ -7,14 +7,14 @@
 namespace xvm {
 
 Dict::Dict(const Dict& other)
-  : data(new Dict::HNode[DICT_INITIAL_CAPACITY]),
+  : data(new Dict::HNode[kDictCapacity]),
     capacity(other.capacity),
     csize(other.csize) {
     for (size_t i = 0; i < capacity; ++i) {
         HNode& src = other.data[i];
         HNode* dst = &data[i];
         dst->key = src.key;
-        dst->value = src.value.clone();
+        dst->value = impl::__clone(&src.value);
     }
 }
 
@@ -37,7 +37,7 @@ Dict& Dict::operator=(const Dict& other) {
             Dict::HNode& src = other.data[i];
             Dict::HNode* dst = &data[i];
             dst->key = src.key;
-            dst->value = src.value.clone();
+            dst->value = impl::__clone(&src.value);
         }
     }
 
@@ -59,22 +59,10 @@ Dict& Dict::operator=(Dict&& other) {
 }
 
 Dict::Dict()
-  : data(new HNode[DICT_INITIAL_CAPACITY]) {}
+  : data(new HNode[kDictCapacity]) {}
 
 Dict::~Dict() {
     delete[] data;
-}
-
-size_t Dict::size() const {
-    return impl::__getDictSize(this);
-}
-
-Value& Dict::get(const char* key) {
-    return *impl::__getDictField(this, key);
-}
-
-void Dict::set(const char* key, Value value) {
-    impl::__setDictField(this, key, std::move(value));
 }
 
 } // namespace xvm

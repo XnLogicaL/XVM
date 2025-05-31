@@ -25,16 +25,12 @@
  */
 namespace xvm {
 
-
 /**
  * @namespace impl
  * @defgroup impl_namespace
  * @{
  */
 namespace impl {
-
-constexpr inline uint16_t BACKEND_REGS_START = kRegCount - 1024;
-constexpr inline uint16_t BACKEND_REGS_END = kRegCount - 1;
 
 const InstructionData& __getAddressData(const State* state, const Instruction* const pc);
 
@@ -47,17 +43,7 @@ std::string __getFuncSig(const Callable& func);
  */
 void __ethrow(State* state, const std::string& message);
 
-template<typename... Args>
-void __ethrowf(State* state, const std::string& fmt, Args&&... args) {
-    try {
-        auto str = std::vformat(fmt, std::make_format_args(std::forward<Args>(args)...));
-        __ethrow(state, str);
-    }
-    catch (const std::format_error&) {
-        // This function is the only exception to non-assertive implementation functions.
-        XVM_ASSERT(false, "__ethrowf: Invalid format string")
-    }
-}
+void __ethrowf(State* state, const std::string& fmt, std::string args...);
 
 /**
  * @brief Clears any existing error state in the interpreter.
@@ -93,14 +79,14 @@ Value __getConstant(const State* state, size_t index);
  * @param val The value to inspect.
  * @return Type as an std::string
  */
-std::string __type(const Value& val);
+std::string __type(const Value* val);
 
 /**
  * @brief Gets the raw pointer stored in a value, or NULL if not applicable.
  * @param val The value to inspect.
  * @return The underlying pointer.
  */
-void* __toPointer(const Value& val);
+void* __toPointer(const Value* val);
 
 /**
  * @brief Pushes a new call frame onto the call stack.
@@ -147,7 +133,7 @@ void __return(State* XVM_RESTRICT state, Value&& retv);
  * @param val The value to get the length of.
  * @return Value Length as an `int`, -1 if impossible.
  */
-int __length(const Value& val);
+int __length(const Value* val);
 
 /**
  * @brief Converts the given value to a language-level String object.
@@ -157,7 +143,7 @@ int __length(const Value& val);
  * @param val The value to convert.
  * @return Value The value as an std::string.
  */
-std::string __toString(const Value& val);
+std::string __toString(const Value* val);
 
 /**
  * @brief Converts a value to its boolean representation.
@@ -169,7 +155,7 @@ std::string __toString(const Value& val);
  * @param val The value to evaluate.
  * @return Value A boolean Value representing the truthiness.
  */
-bool __toBool(const Value& val);
+bool __toBool(const Value* val);
 
 /**
  * @brief Converts the given value to an integer Value or returns Nil if not possible.
@@ -178,9 +164,9 @@ bool __toBool(const Value& val);
  *
  * @param V The VM state (used for allocations or error tracking).
  * @param val The value to convert.
- * @return Value Integer Value or Nil.
+ * @return Value as integer.
  */
-Value __toInt(State* state, const Value& val);
+int __toInt(const Value* val, bool* fail = NULL);
 
 /**
  * @brief Converts the given value to a floating-point Value or returns Nil if not possible.
@@ -189,9 +175,9 @@ Value __toInt(State* state, const Value& val);
  *
  * @param V The VM state (used for allocations or error tracking).
  * @param val The value to convert.
- * @return Value Float Value or Nil.
+ * @return Value as float or NaN if impossible.
  */
-Value __toFloat(State* state, const Value& val);
+float __toFloat(const Value* val, bool* fail = NULL);
 
 /**
  * @brief Deeply compares two values for equality.
@@ -202,7 +188,7 @@ Value __toFloat(State* state, const Value& val);
  * @param val1 Second value.
  * @return bool True if values are shallow-ly equal, false otherwise.
  */
-bool __compare(const Value& val0, const Value& val1);
+bool __compare(const Value* val0, const Value* val1);
 
 /**
  * @brief Deeply compares two values for equality.
@@ -213,7 +199,11 @@ bool __compare(const Value& val0, const Value& val1);
  * @param val1 Second value.
  * @return bool True if values are deeply equal, false otherwise.
  */
-bool __compareDeep(const Value& val0, const Value& val1);
+bool __compareDeep(const Value* val0, const Value* val1);
+
+Value __clone(const Value* val);
+
+void __reset(Value* val);
 
 // Automatically resizes UpValue vector of closure by XVM_UPV_RESIZE_FACTOR.
 void __resizeClosureUpvs(Closure* closure);
@@ -258,7 +248,7 @@ UpValue* __getClosureUpv(Closure* closure, size_t upv_id);
  * @param upv_id Index of the UpValue.
  * @param val Value to set.
  */
-void __setClosureUpv(Closure* closure, size_t upv_id, Value& val);
+void __setClosureUpv(Closure* closure, size_t upv_id, Value* val);
 
 /**
  * @brief Loads bytecode instructions into the closure.
@@ -279,6 +269,10 @@ void __initClosure(State* state, Closure* closure, size_t len);
  * @param closure The closure whose upvalues to close.
  */
 void __closeClosureUpvs(const Closure* closure);
+
+char __getString(const String* str, size_t pos, bool* fail = NULL);
+
+void __setString(String* str, size_t pos, char chr, bool* fail = NULL);
 
 /**
  * @brief Hashes a key string using FNV-1a.
@@ -363,9 +357,6 @@ Value* __getArrayField(const Array* array, size_t index);
  */
 size_t __getArraySize(const Array* array);
 
-void __setString(String* string, size_t index, char chr);
-char __getString(String* string, size_t index);
-
 String* __concatString(String* left, String* right);
 
 /**
@@ -391,6 +382,12 @@ void __push(State* state, Value&& val);
  * @param state The runtime state.
  */
 void __drop(State* state);
+
+Value* __getGlobal(State* state, const char* name);
+
+const Value* __getGlobal(const State* state, const char* name);
+
+void __setGlobal(State* state, const char* name, Value&& val);
 
 /**
  * @brief Retrieves a local variable at a given offset.

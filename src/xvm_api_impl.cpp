@@ -42,6 +42,17 @@ void __ethrow(State* state, const std::string& message) {
     state->einfo->msg = state->salloc.fromArray(message.c_str());
 }
 
+void __ethrowf(State* state, const std::string& fmt, std::string args...) {
+    try {
+        auto str = std::vformat(fmt, std::make_format_args(args));
+        __ethrow(state, str);
+    }
+    catch (const std::format_error&) {
+        // This function is the only exception to non-assertive implementation functions.
+        XVM_ASSERT(false, "__ethrowf: Invalid format string")
+    }
+}
+
 void __eclear(State* state) {
     state->einfo->error = false;
 }
@@ -104,11 +115,11 @@ Value __getConstant(const State* state, size_t index) {
     return XVM_NIL;
 }
 
-std::string __type(const Value& val) {
+std::string __type(const Value* val) {
     using enum ValueKind;
 
     // clang-format off
-    switch (val.type) {
+    switch (val->type) {
     case Nil:      return "nil";
     case Int:      return "int";
     case Float:    return "float";
@@ -122,14 +133,14 @@ std::string __type(const Value& val) {
     XVM_UNREACHABLE();
 }
 
-void* __toPointer(const Value& val) {
-    switch (val.type) {
+void* __toPointer(const Value* val) {
+    switch (val->type) {
     case ValueKind::Function:
     case ValueKind::Array:
     case ValueKind::Dict:
     case ValueKind::String:
         // This is technically UB... too bad!
-        return reinterpret_cast<void*>(val.u.str);
+        return reinterpret_cast<void*>(val->u.str);
     default:
         return NULL;
     }
@@ -192,31 +203,33 @@ void __return(State* XVM_RESTRICT state, Value&& retv) {
     __cipop(state);
 }
 
-int __length(Value& val) {
-    if (val.is_string())
-        return (int)val.u.str->size;
-    else if (val.is_array() || val.is_dict()) {
-        size_t len = val.is_array() ? __getArraySize(val.u.arr) : __getDictSize(val.u.dict);
-        return (int)len;
-    }
+int __length(const Value* val) {
+    using enum ValueKind;
+
+    if (val->type == String)
+        return (int)val->u.str->size;
+    else if (val->type == Array)
+        return (int)__getArraySize(val->u.arr);
+    else if (val->type == Dict)
+        return (int)__getDictSize(val->u.dict);
 
     return -1;
 }
 
-std::string __toString(const Value& val) {
+std::string __toString(const Value* val) {
     using enum ValueKind;
 
-    if (val.is_string()) {
-        return val.u.str->data;
+    if (val->type == String) {
+        return val->u.str->data;
     }
 
-    switch (val.type) {
+    switch (val->type) {
     case Int:
-        return std::to_string(val.u.i);
+        return std::to_string(val->u.i);
     case Float:
-        return std::to_string(val.u.f);
+        return std::to_string(val->u.f);
     case Bool:
-        return val.u.b ? "true" : "false";
+        return val->u.b ? "true" : "false";
     case Array:
     case Dict:
         return std::format("<{}@0x{:x}>", __type(val), (uintptr_t)__toPointer(val));
@@ -224,12 +237,12 @@ std::string __toString(const Value& val) {
         std::string type = "native";
         std::string id = "";
 
-        if (val.u.clsr->callee.type == CallableKind::Function) {
+        if (val->u.clsr->callee.type == CallableKind::Function) {
             type = "function ";
-            id = val.u.clsr->callee.u.fn.id;
+            id = val->u.clsr->callee.u.fn.id;
         }
 
-        return std::format("<{}{}@0x{:x}>", type, id, (uintptr_t)val.u.clsr);
+        return std::format("<{}{}@0x{:x}>", type, id, (uintptr_t)val->u.clsr);
     }
     default:
         return "nil";
@@ -238,135 +251,141 @@ std::string __toString(const Value& val) {
     XVM_UNREACHABLE();
 }
 
-bool __toBool(const Value& val) {
-    if (val.is_bool()) {
-        return val.u.b;
+bool __toBool(const Value* val) {
+    if (val->type == ValueKind::Bool) {
+        return val->u.b;
     }
 
-    return val.type != ValueKind::Nil;
+    return val->type != ValueKind::Nil;
 }
 
-Value __toInt(State* state, const Value& val) {
+int __toInt(const Value* val, bool* fail) {
     using enum ValueKind;
 
-    if (val.is_number()) {
-        return val.clone();
+    if (fail != NULL) {
+        *fail = false;
     }
 
-    switch (val.type) {
+    if (val->type == Int) {
+        return val->u.i;
+    }
+
+    switch (val->type) {
     case String: {
-        const std::string& str = val.u.str->data;
+        const std::string& str = val->u.str->data;
         if (str.empty()) {
-            return XVM_NIL;
+            break;
         }
 
         int int_result;
         auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), int_result);
         if (ec == std::errc() && ptr == str.data() + str.size()) {
-            return Value(int_result);
+            return int_result;
         }
 
-        __ethrow(state, "Failed to cast String into Int");
-        return XVM_NIL;
+        break;
     }
     case Bool:
-        return Value(static_cast<int>(val.u.b));
+        return (int)val->u.b;
     default:
         break;
     }
 
-    __ethrowf(state, "Failed to cast {} into Int", __type(val));
-    return XVM_NIL;
+    if (fail != NULL)
+        *fail = true;
+    return -0x0FFFFFFF;
 }
 
-Value __toFloat(State* state, const Value& val) {
+float __toFloat(const Value* val, bool* fail) {
     using enum ValueKind;
 
-    if (val.is_number()) {
-        return val.clone();
+    if (fail != NULL) {
+        *fail = false;
     }
 
-    switch (val.type) {
+    if (val->type == Float) {
+        return val->u.f;
+    }
+
+    switch (val->type) {
     case String: {
-        const std::string& str = val.u.str->data;
+        const std::string& str = val->u.str->data;
         if (str.empty()) {
-            return XVM_NIL;
+            break;
         }
 
         float float_result;
         auto [ptr_f, ec_f] = std::from_chars(str.data(), str.data() + str.size(), float_result);
         if (ec_f == std::errc() && ptr_f == str.data() + str.size()) {
-            return Value(float_result);
+            return float_result;
         }
 
-        __ethrow(state, "Failed to cast string to float");
-        return XVM_NIL;
+        break;
     }
     case Bool:
-        return Value(static_cast<float>(val.u.b));
+        return (float)val->u.b;
     default:
         break;
     }
 
-    __ethrowf(state, "Failed to cast {} to float", __type(val));
-    return XVM_NIL;
+    if (fail != NULL)
+        *fail = true;
+    return std::nanf("");
 }
 
-bool __compare(const Value& val0, const Value& val1) {
+bool __compare(const Value* val0, const Value* val1) {
     using enum ValueKind;
 
-    if (val0.type != val1.type) {
+    if (val0->type != val1->type) {
         return false;
     }
 
-    switch (val0.type) {
+    switch (val0->type) {
     case Int:
-        return val0.u.i == val1.u.i;
+        return val0->u.i == val1->u.i;
     case Float:
-        return val0.u.f == val1.u.f;
+        return val0->u.f == val1->u.f;
     case Bool:
-        return val0.u.b == val1.u.b;
+        return val0->u.b == val1->u.b;
     case Nil:
         return true;
     case String:
-        return !std::strcmp(val0.u.str->data, val1.u.str->data);
+        return !std::strcmp(val0->u.str->data, val1->u.str->data);
     default:
         return false;
     }
 
     XVM_UNREACHABLE();
-    return false;
 };
 
-
-bool __compareDeep(const Value& val0, const Value& val1) {
+bool __compareDeep(const Value* val0, const Value* val1) {
     using enum ValueKind;
 
-    if (val0.type != val1.type) {
+    if (val0->type != val1->type) {
         return false;
     }
 
-    switch (val0.type) {
+    switch (val0->type) {
     case Int:
-        return val0.u.i == val1.u.i;
+        return val0->u.i == val1->u.i;
     case Float:
-        return val0.u.f == val1.u.f;
+        return val0->u.f == val1->u.f;
     case Bool:
-        return val0.u.b == val1.u.b;
+        return val0->u.b == val1->u.b;
     case Nil:
         return true;
     case String:
-        return !std::strcmp(val0.u.str->data, val1.u.str->data);
+        return !std::strcmp(val0->u.str->data, val1->u.str->data);
     case Array: {
-        if (__getArraySize(val0.u.arr) != __getArraySize(val1.u.arr)) {
+        if (__getArraySize(val0->u.arr) != __getArraySize(val1->u.arr)) {
             return false;
         }
 
-        for (size_t i = 0; i < __getArraySize(val0.u.arr); i++) {
-            Value* val = __getArrayField(val0.u.arr, i);
-            Value* other = __getArrayField(val1.u.arr, i);
+        for (size_t i = 0; i < __getArraySize(val0->u.arr); i++) {
+            Value* val = __getArrayField(val0->u.arr, i);
+            Value* other = __getArrayField(val1->u.arr, i);
 
-            if (!val->compare(*other)) {
+            if (!__compareDeep(val, other)) {
                 return false;
             }
         }
@@ -380,6 +399,42 @@ bool __compareDeep(const Value& val0, const Value& val1) {
 
     XVM_UNREACHABLE();
     return false;
+}
+
+Value __clone(const Value* val) {
+    using enum ValueKind;
+
+    // clang-format off
+    switch (val->type) {
+    case Nil:       return Value();
+    case Int:       return Value(val->u.i);
+    case Float:     return Value(val->u.f);
+    case Bool:      return Value(val->u.b);
+    case String:    return Value(new struct String(*val->u.str));
+    case Array:     return Value(new struct Array(*val->u.arr));
+    case Dict:      return Value(new struct Dict(*val->u.dict));
+    case Function:  return Value(new struct Closure(*val->u.clsr));
+    } // clang-format on
+
+    XVM_UNREACHABLE();
+}
+
+void __reset(Value* val) {
+    using enum ValueKind;
+
+    // clang-format off
+    switch (val->type) {
+    case Nil:
+    case Int:
+    case Float:
+    case Bool:      val->u = {}; break;
+    case String:    delete val->u.str; break;
+    case Array:     delete val->u.arr; break;
+    case Dict:      delete val->u.dict; break;
+    case Function:  delete val->u.clsr; break;
+    } // clang-format on
+
+    val->type = Nil;
 }
 
 // Automatically resizes UpValue vector of closure by XVM_UPV_RESIZE_FACTOR.
@@ -420,17 +475,14 @@ UpValue* __getClosureUpv(Closure* closure, size_t upv_id) {
 }
 
 // Dynamically reassigns UpValue at index <upv_id> the value <val>.
-void __setClosureUpv(Closure* closure, size_t upv_id, Value& val) {
-    UpValue* _Upv = __getClosureUpv(closure, upv_id);
-    if (_Upv != NULL) {
-        if (_Upv->value != NULL) {
-            *_Upv->value = val.clone();
-        }
-        else {
-            _Upv->value = &val;
-        }
-
-        _Upv->valid = true;
+void __setClosureUpv(Closure* closure, size_t upv_id, Value* val) {
+    UpValue* upv = __getClosureUpv(closure, upv_id);
+    if (upv != NULL) {
+        if (upv->value != NULL)
+            *upv->value = __clone(val);
+        else
+            upv->value = val;
+        upv->valid = true;
     }
 }
 
@@ -448,7 +500,7 @@ static void handleCapture(State* state, Closure* closure, size_t* upvalues) {
     else { // Upvalue is captured twice; automatically close it.
         UpValue* upv = &(state->ci_top - 1)->closure->upvs[idx];
         if (upv->valid && upv->open) {
-            upv->heap = upv->value->clone();
+            upv->heap = __clone(upv->value);
             upv->value = &upv->heap;
             upv->open = false;
         }
@@ -475,7 +527,7 @@ void __initClosure(State* state, Closure* closure, size_t len) {
 }
 
 static void closeUpvalue(UpValue* upv) {
-    upv->heap = upv->value->clone();
+    upv->heap = __clone(upv->value);
     upv->value = &upv->heap;
     upv->open = false;
 }
@@ -536,7 +588,7 @@ size_t __getDictSize(const Dict* dict) {
     size_t index = 0;
     for (; index < dict->capacity; index++) {
         Dict::HNode& obj = dict->data[index];
-        if (obj.value.is_nil()) {
+        if (obj.value.type == ValueKind::Nil) {
             break;
         }
     }
@@ -600,7 +652,7 @@ size_t __getArraySize(const Array* array) {
 
     size_t size = 0;
     for (Value* ptr = array->data; ptr < array->data + array->capacity; ptr++) {
-        if (!ptr->is_nil()) {
+        if (ptr->type != ValueKind::Nil) {
             size++;
         }
     }
@@ -611,13 +663,33 @@ size_t __getArraySize(const Array* array) {
     return size;
 }
 
-void __setString(String* string, size_t index, char chr) {
-    string->data[index] = chr;
-    string->hash = xvm::strhash(string->data);
+char __getString(const String* str, size_t pos, bool* fail) {
+    if (fail != NULL) {
+        *fail = false;
+    }
+
+    if (pos < str->size) {
+        return str->data[pos];
+    }
+
+    if (fail != NULL)
+        *fail = true;
+    return 0x00;
 }
 
-char __getString(String* string, size_t index) {
-    return string->data[index];
+void __setString(String* str, size_t pos, char chr, bool* fail) {
+    if (fail != NULL) {
+        *fail = false;
+    }
+
+    if (pos < str->size) {
+        str->data[pos] = chr;
+        return;
+    }
+
+    if (fail != NULL) {
+        *fail = true;
+    }
 }
 
 String* __concatString(String* left, String* right) {
@@ -641,7 +713,19 @@ void __push(State* state, Value&& val) {
 
 void __drop(State* state) {
     state->stk_top--;
-    state->stk_top->reset();
+    __reset(state->stk_top);
+}
+
+Value* __getGlobal(State* state, const char* name) {
+    return __getDictField(state->genv, name);
+}
+
+const Value* __getGlobal(const State* state, const char* name) {
+    return __getDictField(state->genv, name);
+}
+
+void __setGlobal(State* state, const char* name, Value&& val) {
+    __setDictField(state->genv, name, std::move(val));
 }
 
 StkId __getLocal(State* state, size_t offset) {

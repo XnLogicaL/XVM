@@ -26,7 +26,7 @@ namespace xvm {
 /**
  * @brief Default starting capacity for all dictionaries.
  */
-inline constexpr size_t DICT_INITIAL_CAPACITY = 64;
+inline constexpr size_t kDictCapacity = 64;
 
 /**
  * @struct Dict
@@ -45,38 +45,15 @@ struct Dict {
         Value       value; ///< Corresponding value.
     };
 
-    HNode* data = NULL;                      ///< Pointer to the hash table buffer.
-    size_t capacity = DICT_INITIAL_CAPACITY; ///< Total capacity of the table.
-    CSize  csize = {};                       ///< Tracks logical size and handles resizing.
+    HNode* data = NULL;              ///< Pointer to the hash table buffer.
+    size_t capacity = kDictCapacity; ///< Total capacity of the table.
+    CSize  csize = {};               ///< Tracks logical size and handles resizing.
 
     XVM_IMPLCOPY(Dict); ///< Enables copy constructor and assignment.
     XVM_IMPLMOVE(Dict); ///< Enables move constructor and assignment.
 
     Dict();
     ~Dict();
-
-    /**
-     * @brief Returns the number of key-value pairs currently stored.
-     * @return Logical size of the dictionary.
-     */
-    size_t size() const;
-
-    /**
-     * @brief Retrieves the value associated with a given key.
-     * If the key is not found, returns a reference to Nil.
-     * @param key The null-terminated key string.
-     * @return Reference to the value associated with the key or Nil.
-     */
-    Value& get(const char* key);
-
-    /**
-     * @brief Sets the value associated with a given key.
-     * If the key already exists, the value is overwritten.
-     * If the key does not exist, a new entry is inserted.
-     * @param key The null-terminated key string.
-     * @param value The value to associate with the key.
-     */
-    void set(const char* key, Value value);
 };
 
 } // namespace xvm

@@ -137,18 +137,20 @@ static XVM_FORCEINLINE void performArith(Opcode op, A& a, B b) {
 }
 
 static XVM_FORCEINLINE int arith(State* state, Opcode op, Value* lhs, Value* rhs) {
+    using enum ValueKind;
+
     if (!isArithOpcode(op)) {
         return 1;
     }
 
-    auto as_float = [](const Value& v) -> float {
-        return v.is_int() ? static_cast<float>(v.u.i) : v.u.f;
-    };
-
-    if (lhs->is_int() && rhs->is_int()) {
+    if (lhs->type == Int && rhs->type == Int) {
         performArith(op, lhs->u.i, rhs->u.i);
     }
     else {
+        auto as_float = [](const Value& v) -> float {
+            return v.type == Int ? static_cast<float>(v.u.i) : v.u.f;
+        };
+
         float a = as_float(*lhs);
         float b = as_float(*rhs);
 
@@ -162,19 +164,23 @@ static XVM_FORCEINLINE int arith(State* state, Opcode op, Value* lhs, Value* rhs
 }
 
 static XVM_FORCEINLINE void iarith(State* state, Opcode op, Value* lhs, int i) {
-    if XVM_LIKELY (lhs->is_int()) {
+    using enum ValueKind;
+
+    if XVM_LIKELY (lhs->type == Int) {
         performArith(op, lhs->u.i, i);
     }
-    else if (lhs->is_float()) {
+    else if (lhs->type == Float) {
         performArith(op, lhs->u.f, i);
     }
 }
 
 static XVM_FORCEINLINE void farith(State* state, Opcode op, Value* lhs, float f) {
-    if XVM_LIKELY (lhs->is_int()) {
+    using enum ValueKind;
+
+    if XVM_LIKELY (lhs->type == Int) {
         performArith(op, lhs->u.i, f);
     }
-    else if (lhs->is_float()) {
+    else if (lhs->type == Float) {
         performArith(op, lhs->u.f, f);
     }
 }
@@ -290,7 +296,7 @@ dispatch:
             uint16_t rsrc = state->pc->b;
             Value*   src_val = __getRegister(state, rsrc);
 
-            __setRegister(state, rdst, src_val->clone());
+            __setRegister(state, rdst, __clone(src_val));
             VM_NEXT();
         }
 
@@ -298,10 +304,10 @@ dispatch:
             uint16_t rdst = state->pc->a;
             Value*   dst_val = __getRegister(state, rdst);
 
-            if XVM_LIKELY (dst_val->is_int()) {
+            if XVM_LIKELY (dst_val->type == ValueKind::Int) {
                 dst_val->u.i++;
             }
-            else if XVM_UNLIKELY (dst_val->is_float()) {
+            else if XVM_UNLIKELY (dst_val->type == ValueKind::Float) {
                 dst_val->u.f++;
             }
 
@@ -312,10 +318,10 @@ dispatch:
             uint16_t rdst = state->pc->a;
             Value*   dst_val = __getRegister(state, rdst);
 
-            if XVM_LIKELY (dst_val->is_int()) {
+            if XVM_LIKELY (dst_val->type == ValueKind::Int) {
                 dst_val->u.i--;
             }
-            else if XVM_UNLIKELY (dst_val->is_float()) {
+            else if XVM_UNLIKELY (dst_val->type == ValueKind::Float) {
                 dst_val->u.f--;
             }
 
@@ -328,7 +334,7 @@ dispatch:
 
             const Value& kval = __getConstant(state, idx);
 
-            __setRegister(state, ra, kval.clone());
+            __setRegister(state, ra, __clone(&kval));
             VM_NEXT();
         }
 
@@ -426,7 +432,7 @@ dispatch:
 
             UpValue* upv = __getClosureUpv((state->ci_top - 1)->closure, ib);
 
-            __setRegister(state, ra, upv->value->clone());
+            __setRegister(state, ra, __clone(upv->value));
             VM_NEXT();
         }
 
@@ -436,7 +442,7 @@ dispatch:
 
             Value* val = __getRegister(state, ra);
 
-            __setClosureUpv((state->ci_top - 1)->closure, upv_id, *val);
+            __setClosureUpv((state->ci_top - 1)->closure, upv_id, val);
             VM_NEXT();
         }
 
@@ -493,7 +499,7 @@ dispatch:
             uint16_t off = state->pc->b;
             Value*   val = __getLocal(state, off);
 
-            __setRegister(state, ra, val->clone());
+            __setRegister(state, ra, __clone(val));
             VM_NEXT();
         }
 
@@ -512,31 +518,29 @@ dispatch:
 
             StkId val = state->stk_base - off - 1;
 
-            __setRegister(state, ra, val->clone());
+            __setRegister(state, ra, __clone(val));
             VM_NEXT();
         }
 
         VM_CASE(GETGLOBAL) {
             uint16_t ra = state->pc->a;
-            uint16_t key = state->pc->b;
+            uint16_t rb = state->pc->b;
 
-            Value*       key_obj = __getRegister(state, key);
-            String*      key_str = key_obj->u.str;
-            const Value& global = state->genv->get(key_str->data);
+            Value* key = __getRegister(state, rb);
+            Value* global = __getGlobal(state, key->u.str->data);
 
-            __setRegister(state, ra, global.clone());
+            __setRegister(state, ra, __clone(global));
             VM_NEXT();
         }
 
         VM_CASE(SETGLOBAL) {
             uint16_t ra = state->pc->a;
-            uint16_t key = state->pc->b;
+            uint16_t rb = state->pc->b;
 
-            Value*  key_obj = __getRegister(state, key);
-            String* key_str = key_obj->u.str;
-            Value*  global = __getRegister(state, ra);
+            Value* key = __getRegister(state, rb);
+            Value* global = __getRegister(state, ra);
 
-            state->genv->set(key_str->data, std::move(*global));
+            __setGlobal(state, key->u.str->data, std::move(*global));
             VM_NEXT();
         }
 
@@ -558,7 +562,7 @@ dispatch:
                 VM_NEXT();
             }
 
-            bool result = __compare(*lhs, *rhs);
+            bool result = __compare(lhs, rhs);
             __setRegister(state, ra, Value(result));
 
             VM_NEXT();
@@ -582,7 +586,7 @@ dispatch:
                 VM_NEXT();
             }
 
-            bool result = __compareDeep(*lhs, *rhs);
+            bool result = __compareDeep(lhs, rhs);
             __setRegister(state, ra, Value(result));
 
             VM_NEXT();
@@ -606,7 +610,7 @@ dispatch:
                 VM_NEXT();
             }
 
-            bool result = __compare(*lhs, *rhs);
+            bool result = __compare(lhs, rhs);
             __setRegister(state, ra, Value(result));
 
             VM_NEXT();
@@ -619,7 +623,7 @@ dispatch:
 
             Value* lhs = __getRegister(state, rb);
             Value* rhs = __getRegister(state, rc);
-            bool   cond = __toBool(*lhs) && __toBool(*rhs);
+            bool   cond = __toBool(lhs) && __toBool(rhs);
 
             __setRegister(state, ra, Value(cond));
             VM_NEXT();
@@ -632,7 +636,7 @@ dispatch:
 
             Value* lhs = __getRegister(state, rb);
             Value* rhs = __getRegister(state, rc);
-            bool   cond = __toBool(*lhs) || __toBool(*rhs);
+            bool   cond = __toBool(lhs) || __toBool(rhs);
 
             __setRegister(state, ra, Value(cond));
             VM_NEXT();
@@ -643,7 +647,7 @@ dispatch:
             uint16_t rb = state->pc->b;
 
             Value* lhs = __getRegister(state, rb);
-            bool   cond = !__toBool(*lhs);
+            bool   cond = !__toBool(lhs);
 
             __setRegister(state, ra, Value(cond));
             VM_NEXT();
@@ -657,19 +661,19 @@ dispatch:
             Value* lhs = __getRegister(state, rb);
             Value* rhs = __getRegister(state, rc);
 
-            if XVM_LIKELY (lhs->is_int()) {
-                if XVM_LIKELY (rhs->is_int()) {
+            if XVM_LIKELY (lhs->type == ValueKind::Int) {
+                if XVM_LIKELY (rhs->type == ValueKind::Int) {
                     __setRegister(state, ra, Value(lhs->u.i < rhs->u.i));
                 }
-                else if XVM_UNLIKELY (rhs->is_float()) {
+                else if XVM_UNLIKELY (rhs->type == ValueKind::Float) {
                     __setRegister(state, ra, Value(static_cast<float>(lhs->u.i) < rhs->u.f));
                 }
             }
-            else if XVM_UNLIKELY (lhs->is_float()) {
-                if XVM_LIKELY (rhs->is_int()) {
+            else if XVM_UNLIKELY (lhs->type == ValueKind::Float) {
+                if XVM_LIKELY (rhs->type == ValueKind::Int) {
                     __setRegister(state, ra, Value(lhs->u.f < static_cast<float>(rhs->u.i)));
                 }
-                else if XVM_UNLIKELY (rhs->is_float()) {
+                else if XVM_UNLIKELY (rhs->type == ValueKind::Float) {
                     __setRegister(state, ra, Value(lhs->u.f < rhs->u.f));
                 }
             }
@@ -685,19 +689,19 @@ dispatch:
             Value* lhs = __getRegister(state, rb);
             Value* rhs = __getRegister(state, rc);
 
-            if XVM_LIKELY (lhs->is_int()) {
-                if XVM_LIKELY (rhs->is_int()) {
+            if XVM_LIKELY (lhs->type == ValueKind::Int) {
+                if XVM_LIKELY (rhs->type == ValueKind::Int) {
                     __setRegister(state, ra, Value(lhs->u.i > rhs->u.i));
                 }
-                else if XVM_UNLIKELY (rhs->is_float()) {
+                else if XVM_UNLIKELY (rhs->type == ValueKind::Float) {
                     __setRegister(state, ra, Value(static_cast<float>(lhs->u.i) > rhs->u.f));
                 }
             }
-            else if XVM_UNLIKELY (lhs->is_float()) {
-                if XVM_LIKELY (rhs->is_int()) {
+            else if XVM_UNLIKELY (lhs->type == ValueKind::Float) {
+                if XVM_LIKELY (rhs->type == ValueKind::Int) {
                     __setRegister(state, ra, Value(lhs->u.f > static_cast<float>(rhs->u.i)));
                 }
-                else if XVM_UNLIKELY (rhs->is_float()) {
+                else if XVM_UNLIKELY (rhs->type == ValueKind::Float) {
                     __setRegister(state, ra, Value(lhs->u.f > rhs->u.f));
                 }
             }
@@ -713,19 +717,19 @@ dispatch:
             Value* lhs = __getRegister(state, rb);
             Value* rhs = __getRegister(state, rc);
 
-            if XVM_LIKELY (lhs->is_int()) {
-                if XVM_LIKELY (rhs->is_int()) {
+            if XVM_LIKELY (lhs->type == ValueKind::Int) {
+                if XVM_LIKELY (rhs->type == ValueKind::Int) {
                     __setRegister(state, ra, Value(lhs->u.i <= rhs->u.i));
                 }
-                else if XVM_UNLIKELY (rhs->is_float()) {
+                else if XVM_UNLIKELY (rhs->type == ValueKind::Float) {
                     __setRegister(state, ra, Value(static_cast<float>(lhs->u.i) <= rhs->u.f));
                 }
             }
-            else if XVM_UNLIKELY (lhs->is_float()) {
-                if XVM_LIKELY (rhs->is_int()) {
+            else if XVM_UNLIKELY (lhs->type == ValueKind::Float) {
+                if XVM_LIKELY (rhs->type == ValueKind::Int) {
                     __setRegister(state, ra, Value(lhs->u.f <= static_cast<float>(rhs->u.i)));
                 }
-                else if XVM_UNLIKELY (rhs->is_float()) {
+                else if XVM_UNLIKELY (rhs->type == ValueKind::Float) {
                     __setRegister(state, ra, Value(lhs->u.f <= rhs->u.f));
                 }
             }
@@ -741,19 +745,19 @@ dispatch:
             Value* lhs = __getRegister(state, rb);
             Value* rhs = __getRegister(state, rc);
 
-            if XVM_LIKELY (lhs->is_int()) {
-                if XVM_LIKELY (rhs->is_int()) {
+            if XVM_LIKELY (lhs->type == ValueKind::Int) {
+                if XVM_LIKELY (rhs->type == ValueKind::Int) {
                     __setRegister(state, ra, Value(lhs->u.i >= rhs->u.i));
                 }
-                else if XVM_UNLIKELY (rhs->is_float()) {
+                else if XVM_UNLIKELY (rhs->type == ValueKind::Float) {
                     __setRegister(state, ra, Value(static_cast<float>(lhs->u.i) >= rhs->u.f));
                 }
             }
-            else if XVM_UNLIKELY (lhs->is_float()) {
-                if XVM_LIKELY (rhs->is_int()) {
+            else if XVM_UNLIKELY (lhs->type == ValueKind::Float) {
+                if XVM_LIKELY (rhs->type == ValueKind::Int) {
                     __setRegister(state, ra, Value(lhs->u.f >= static_cast<float>(rhs->u.i)));
                 }
-                else if XVM_UNLIKELY (rhs->is_float()) {
+                else if XVM_UNLIKELY (rhs->type == ValueKind::Float) {
                     __setRegister(state, ra, Value(lhs->u.f >= rhs->u.f));
                 }
             }
@@ -776,7 +780,7 @@ dispatch:
             int16_t  offset = state->pc->b;
 
             Value* cond_val = __getRegister(state, cond);
-            if (__toBool(*cond_val)) {
+            if (__toBool(cond_val)) {
                 state->pc += offset;
                 goto dispatch;
             }
@@ -789,7 +793,7 @@ dispatch:
             int16_t  offset = state->pc->b;
 
             Value* cond_val = __getRegister(state, cond);
-            if (!__toBool(*cond_val)) {
+            if (!__toBool(cond_val)) {
                 state->pc += offset;
                 goto dispatch;
             }
@@ -810,7 +814,7 @@ dispatch:
                 Value* lhs = __getRegister(state, cond_lhs);
                 Value* rhs = __getRegister(state, cond_rhs);
 
-                if XVM_UNLIKELY (lhs == rhs || __compare(*lhs, *rhs)) {
+                if XVM_UNLIKELY (lhs == rhs || __compare(lhs, rhs)) {
                     state->pc += offset;
                     goto dispatch;
                 }
@@ -832,7 +836,7 @@ dispatch:
                 Value* lhs = __getRegister(state, cond_lhs);
                 Value* rhs = __getRegister(state, cond_rhs);
 
-                if XVM_LIKELY (lhs != rhs || !__compare(*lhs, *rhs)) {
+                if XVM_LIKELY (lhs != rhs || !__compare(lhs, rhs)) {
                     state->pc += offset;
                     goto dispatch;
                 }
@@ -849,28 +853,28 @@ dispatch:
             Value* lhs = __getRegister(state, cond_lhs);
             Value* rhs = __getRegister(state, cond_rhs);
 
-            if XVM_LIKELY (lhs->is_int()) {
-                if XVM_LIKELY (rhs->is_int()) {
+            if XVM_LIKELY (lhs->type == ValueKind::Int) {
+                if XVM_LIKELY (rhs->type == ValueKind::Int) {
                     if (lhs->u.i < rhs->u.i) {
                         state->pc += offset;
                         goto dispatch;
                     }
                 }
-                else if XVM_UNLIKELY (rhs->is_float()) {
+                else if XVM_UNLIKELY (rhs->type == ValueKind::Float) {
                     if (static_cast<float>(lhs->u.i) < rhs->u.f) {
                         state->pc += offset;
                         goto dispatch;
                     }
                 }
             }
-            else if XVM_UNLIKELY (lhs->is_float()) {
-                if XVM_LIKELY (rhs->is_int()) {
+            else if XVM_UNLIKELY (lhs->type == ValueKind::Float) {
+                if XVM_LIKELY (rhs->type == ValueKind::Int) {
                     if (lhs->u.f < static_cast<float>(rhs->u.i)) {
                         state->pc += offset;
                         goto dispatch;
                     }
                 }
-                else if XVM_UNLIKELY (rhs->is_float()) {
+                else if XVM_UNLIKELY (rhs->type == ValueKind::Float) {
                     if (lhs->u.f < rhs->u.f) {
                         state->pc += offset;
                         goto dispatch;
@@ -889,28 +893,28 @@ dispatch:
             Value* lhs = __getRegister(state, cond_lhs);
             Value* rhs = __getRegister(state, cond_rhs);
 
-            if XVM_LIKELY (lhs->is_int()) {
-                if XVM_LIKELY (rhs->is_int()) {
+            if XVM_LIKELY (lhs->type == ValueKind::Int) {
+                if XVM_LIKELY (rhs->type == ValueKind::Int) {
                     if (lhs->u.i > rhs->u.i) {
                         state->pc += offset;
                         goto dispatch;
                     }
                 }
-                else if XVM_UNLIKELY (rhs->is_float()) {
+                else if XVM_UNLIKELY (rhs->type == ValueKind::Float) {
                     if (static_cast<float>(lhs->u.i) > rhs->u.f) {
                         state->pc += offset;
                         goto dispatch;
                     }
                 }
             }
-            else if XVM_UNLIKELY (lhs->is_float()) {
-                if XVM_LIKELY (rhs->is_int()) {
+            else if XVM_UNLIKELY (lhs->type == ValueKind::Float) {
+                if XVM_LIKELY (rhs->type == ValueKind::Int) {
                     if (lhs->u.f > static_cast<float>(rhs->u.i)) {
                         state->pc += offset;
                         goto dispatch;
                     }
                 }
-                else if XVM_UNLIKELY (rhs->is_float()) {
+                else if XVM_UNLIKELY (rhs->type == ValueKind::Float) {
                     if (lhs->u.f > rhs->u.f) {
                         state->pc += offset;
                         goto dispatch;
@@ -929,28 +933,28 @@ dispatch:
             Value* lhs = __getRegister(state, cond_lhs);
             Value* rhs = __getRegister(state, cond_rhs);
 
-            if XVM_LIKELY (lhs->is_int()) {
-                if XVM_LIKELY (rhs->is_int()) {
+            if XVM_LIKELY (lhs->type == ValueKind::Int) {
+                if XVM_LIKELY (rhs->type == ValueKind::Int) {
                     if (lhs->u.i <= rhs->u.i) {
                         state->pc += offset;
                         goto dispatch;
                     }
                 }
-                else if XVM_UNLIKELY (rhs->is_float()) {
+                else if XVM_UNLIKELY (rhs->type == ValueKind::Float) {
                     if (static_cast<float>(lhs->u.i) <= rhs->u.f) {
                         state->pc += offset;
                         goto dispatch;
                     }
                 }
             }
-            else if XVM_UNLIKELY (lhs->is_float()) {
-                if XVM_LIKELY (rhs->is_int()) {
+            else if XVM_UNLIKELY (lhs->type == ValueKind::Float) {
+                if XVM_LIKELY (rhs->type == ValueKind::Int) {
                     if (lhs->u.f <= static_cast<float>(rhs->u.i)) {
                         state->pc += offset;
                         goto dispatch;
                     }
                 }
-                else if XVM_UNLIKELY (rhs->is_float()) {
+                else if XVM_UNLIKELY (rhs->type == ValueKind::Float) {
                     if (lhs->u.f <= rhs->u.f) {
                         state->pc += offset;
                         goto dispatch;
@@ -969,28 +973,28 @@ dispatch:
             Value* lhs = __getRegister(state, cond_lhs);
             Value* rhs = __getRegister(state, cond_rhs);
 
-            if XVM_LIKELY (lhs->is_int()) {
-                if XVM_LIKELY (rhs->is_int()) {
+            if XVM_LIKELY (lhs->type == ValueKind::Int) {
+                if XVM_LIKELY (rhs->type == ValueKind::Int) {
                     if (lhs->u.i >= rhs->u.i) {
                         state->pc += offset;
                         goto dispatch;
                     }
                 }
-                else if XVM_UNLIKELY (rhs->is_float()) {
+                else if XVM_UNLIKELY (rhs->type == ValueKind::Float) {
                     if (static_cast<float>(lhs->u.i) >= rhs->u.f) {
                         state->pc += offset;
                         goto dispatch;
                     }
                 }
             }
-            else if XVM_UNLIKELY (lhs->is_float()) {
-                if XVM_LIKELY (rhs->is_int()) {
+            else if XVM_UNLIKELY (lhs->type == ValueKind::Float) {
+                if XVM_LIKELY (rhs->type == ValueKind::Int) {
                     if (lhs->u.f >= static_cast<float>(rhs->u.i)) {
                         state->pc += offset;
                         goto dispatch;
                     }
                 }
-                else if XVM_UNLIKELY (rhs->is_float()) {
+                else if XVM_UNLIKELY (rhs->type == ValueKind::Float) {
                     if (lhs->u.f >= rhs->u.f) {
                         state->pc += offset;
                         goto dispatch;
@@ -1014,7 +1018,7 @@ dispatch:
             uint16_t label = state->pc->b;
 
             Value* cond_val = __getRegister(state, cond);
-            if (__toBool(*cond_val)) {
+            if (__toBool(cond_val)) {
                 state->pc = __getLabelAddress(state, label);
                 goto dispatch;
             }
@@ -1027,7 +1031,7 @@ dispatch:
             uint16_t label = state->pc->b;
 
             Value* cond_val = __getRegister(state, cond);
-            if (!__toBool(*cond_val)) {
+            if (!__toBool(cond_val)) {
                 state->pc = __getLabelAddress(state, label);
                 goto dispatch;
             }
@@ -1048,7 +1052,7 @@ dispatch:
                 Value* lhs = __getRegister(state, cond_lhs);
                 Value* rhs = __getRegister(state, cond_rhs);
 
-                if XVM_UNLIKELY (lhs == rhs || __compare(*lhs, *rhs)) {
+                if XVM_UNLIKELY (lhs == rhs || __compare(lhs, rhs)) {
                     state->pc = __getLabelAddress(state, label);
                     goto dispatch;
                 }
@@ -1070,7 +1074,7 @@ dispatch:
                 Value* lhs = __getRegister(state, cond_lhs);
                 Value* rhs = __getRegister(state, cond_rhs);
 
-                if XVM_LIKELY (lhs != rhs || !__compare(*lhs, *rhs)) {
+                if XVM_LIKELY (lhs != rhs || !__compare(lhs, rhs)) {
                     state->pc = __getLabelAddress(state, label);
                     goto dispatch;
                 }
@@ -1087,28 +1091,28 @@ dispatch:
             Value* lhs = __getRegister(state, cond_lhs);
             Value* rhs = __getRegister(state, cond_rhs);
 
-            if XVM_LIKELY (lhs->is_int()) {
-                if XVM_LIKELY (rhs->is_int()) {
+            if XVM_LIKELY (lhs->type == ValueKind::Int) {
+                if XVM_LIKELY (rhs->type == ValueKind::Int) {
                     if (lhs->u.i < rhs->u.i) {
                         state->pc = __getLabelAddress(state, label);
                         goto dispatch;
                     }
                 }
-                else if XVM_UNLIKELY (rhs->is_float()) {
+                else if XVM_UNLIKELY (rhs->type == ValueKind::Float) {
                     if (static_cast<float>(lhs->u.i) < rhs->u.f) {
                         state->pc = __getLabelAddress(state, label);
                         goto dispatch;
                     }
                 }
             }
-            else if XVM_UNLIKELY (lhs->is_float()) {
-                if XVM_LIKELY (rhs->is_int()) {
+            else if XVM_UNLIKELY (lhs->type == ValueKind::Float) {
+                if XVM_LIKELY (rhs->type == ValueKind::Int) {
                     if (lhs->u.f < static_cast<float>(rhs->u.i)) {
                         state->pc = __getLabelAddress(state, label);
                         goto dispatch;
                     }
                 }
-                else if XVM_UNLIKELY (rhs->is_float()) {
+                else if XVM_UNLIKELY (rhs->type == ValueKind::Float) {
                     if (lhs->u.f < rhs->u.f) {
                         state->pc = __getLabelAddress(state, label);
                         goto dispatch;
@@ -1127,28 +1131,28 @@ dispatch:
             Value* lhs = __getRegister(state, cond_lhs);
             Value* rhs = __getRegister(state, cond_rhs);
 
-            if XVM_LIKELY (lhs->is_int()) {
-                if XVM_LIKELY (rhs->is_int()) {
+            if XVM_LIKELY (lhs->type == ValueKind::Int) {
+                if XVM_LIKELY (rhs->type == ValueKind::Int) {
                     if (lhs->u.i > rhs->u.i) {
                         state->pc = __getLabelAddress(state, label);
                         goto dispatch;
                     }
                 }
-                else if XVM_UNLIKELY (rhs->is_float()) {
+                else if XVM_UNLIKELY (rhs->type == ValueKind::Float) {
                     if (static_cast<float>(lhs->u.i) > rhs->u.f) {
                         state->pc = __getLabelAddress(state, label);
                         goto dispatch;
                     }
                 }
             }
-            else if XVM_UNLIKELY (lhs->is_float()) {
-                if XVM_LIKELY (rhs->is_int()) {
+            else if XVM_UNLIKELY (lhs->type == ValueKind::Float) {
+                if XVM_LIKELY (rhs->type == ValueKind::Int) {
                     if (lhs->u.f > static_cast<float>(rhs->u.i)) {
                         state->pc = __getLabelAddress(state, label);
                         goto dispatch;
                     }
                 }
-                else if XVM_UNLIKELY (rhs->is_float()) {
+                else if XVM_UNLIKELY (rhs->type == ValueKind::Float) {
                     if (lhs->u.f > rhs->u.f) {
                         state->pc = __getLabelAddress(state, label);
                         goto dispatch;
@@ -1167,28 +1171,28 @@ dispatch:
             Value* lhs = __getRegister(state, cond_lhs);
             Value* rhs = __getRegister(state, cond_rhs);
 
-            if XVM_LIKELY (lhs->is_int()) {
-                if XVM_LIKELY (rhs->is_int()) {
+            if XVM_LIKELY (lhs->type == ValueKind::Int) {
+                if XVM_LIKELY (rhs->type == ValueKind::Int) {
                     if (lhs->u.i <= rhs->u.i) {
                         state->pc = __getLabelAddress(state, label);
                         goto dispatch;
                     }
                 }
-                else if XVM_UNLIKELY (rhs->is_float()) {
+                else if XVM_UNLIKELY (rhs->type == ValueKind::Float) {
                     if (static_cast<float>(lhs->u.i) <= rhs->u.f) {
                         state->pc = __getLabelAddress(state, label);
                         goto dispatch;
                     }
                 }
             }
-            else if XVM_UNLIKELY (lhs->is_float()) {
-                if XVM_LIKELY (rhs->is_int()) {
+            else if XVM_UNLIKELY (lhs->type == ValueKind::Float) {
+                if XVM_LIKELY (rhs->type == ValueKind::Int) {
                     if (lhs->u.f <= static_cast<float>(rhs->u.i)) {
                         state->pc = __getLabelAddress(state, label);
                         goto dispatch;
                     }
                 }
-                else if XVM_UNLIKELY (rhs->is_float()) {
+                else if XVM_UNLIKELY (rhs->type == ValueKind::Float) {
                     if (lhs->u.f <= rhs->u.f) {
                         state->pc = __getLabelAddress(state, label);
                         goto dispatch;
@@ -1207,28 +1211,28 @@ dispatch:
             Value* lhs = __getRegister(state, cond_lhs);
             Value* rhs = __getRegister(state, cond_rhs);
 
-            if XVM_LIKELY (lhs->is_int()) {
-                if XVM_LIKELY (rhs->is_int()) {
+            if XVM_LIKELY (lhs->type == ValueKind::Int) {
+                if XVM_LIKELY (rhs->type == ValueKind::Int) {
                     if (lhs->u.i >= rhs->u.i) {
                         state->pc = __getLabelAddress(state, label);
                         goto dispatch;
                     }
                 }
-                else if XVM_UNLIKELY (rhs->is_float()) {
+                else if XVM_UNLIKELY (rhs->type == ValueKind::Float) {
                     if (static_cast<float>(lhs->u.i) >= rhs->u.f) {
                         state->pc = __getLabelAddress(state, label);
                         goto dispatch;
                     }
                 }
             }
-            else if XVM_UNLIKELY (lhs->is_float()) {
-                if XVM_LIKELY (rhs->is_int()) {
+            else if XVM_UNLIKELY (lhs->type == ValueKind::Float) {
+                if XVM_LIKELY (rhs->type == ValueKind::Int) {
                     if (lhs->u.f >= static_cast<float>(rhs->u.i)) {
                         state->pc = __getLabelAddress(state, label);
                         goto dispatch;
                     }
                 }
-                else if XVM_UNLIKELY (rhs->is_float()) {
+                else if XVM_UNLIKELY (rhs->type == ValueKind::Float) {
                     if (lhs->u.f >= rhs->u.f) {
                         state->pc = __getLabelAddress(state, label);
                         goto dispatch;
@@ -1308,7 +1312,7 @@ dispatch:
             Value* index = __getRegister(state, key);
             Value* result = __getArrayField(value->u.arr, index->u.i);
 
-            __setRegister(state, ra, result->clone());
+            __setRegister(state, ra, __clone(result));
             VM_NEXT();
         }
 
@@ -1332,7 +1336,7 @@ dispatch:
             uint16_t rb = state->pc->b;
 
             Value*   val = __getRegister(state, rb);
-            void*    ptr = __toPointer(*val);
+            void*    ptr = __toPointer(val);
             uint16_t key = 0;
 
             auto it = next_table.find(ptr);
@@ -1344,7 +1348,7 @@ dispatch:
             }
 
             Value* field = __getArrayField(val->u.arr, key);
-            __setRegister(state, ra, field->clone());
+            __setRegister(state, ra, __clone(field));
             VM_NEXT();
         }
 
@@ -1426,9 +1430,15 @@ dispatch:
             uint16_t rb = state->pc->b;
 
             Value* target = __getRegister(state, rb);
-            Value  result = __toInt(state, *target);
 
-            __setRegister(state, ra, std::move(result));
+            bool fail;
+            int  result = __toInt(target, &fail);
+
+            if (fail) {
+                VM_ERROR("Integer cast failed");
+            }
+
+            __setRegister(state, ra, Value(result));
             VM_NEXT();
         }
 
@@ -1437,9 +1447,15 @@ dispatch:
             uint16_t rb = state->pc->b;
 
             Value* target = __getRegister(state, rb);
-            Value  result = __toFloat(state, *target);
 
-            __setRegister(state, ra, std::move(result));
+            bool  fail;
+            float result = __toFloat(target, &fail);
+
+            if (fail) {
+                VM_ERROR("Float cast failed");
+            }
+
+            __setRegister(state, ra, Value(result));
             VM_NEXT();
         }
 
@@ -1448,7 +1464,7 @@ dispatch:
             uint16_t rb = state->pc->b;
 
             Value* target = __getRegister(state, rb);
-            auto   result = __toString(*target);
+            auto   result = __toString(target);
 
             __setRegister(state, ra, Value(new String(result.c_str())));
             VM_NEXT();
@@ -1459,7 +1475,7 @@ dispatch:
             uint16_t rb = state->pc->b;
 
             Value* target = __getRegister(state, rb);
-            auto   result = __toString(*target);
+            auto   result = __toString(target);
 
             __setRegister(state, ra, Value(new String(result.c_str())));
             VM_NEXT();

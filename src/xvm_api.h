@@ -9,6 +9,28 @@
 
 namespace xvm {
 
+void error(State& state, std::string msg);
+
+std::string type(const Value& val);
+
+std::string toString(const Value& val);
+
+bool toBool(const Value& val);
+
+int toInt(const Value& val);
+
+float toFloat(const Value& val);
+
+bool compare(const Value& val);
+
+bool deepCompare(const Value& val);
+
+Value clone(const Value& val);
+
+void reset(Value& val);
+
+int length(const Value& val);
+
 void execute(State& state);
 
 void executeStep(State& state, std::optional<Instruction> insn = std::nullopt);
@@ -42,6 +64,8 @@ void setGlobal(State& state, const char* name, const Value& value);
 void call(State& state, const Closure& callee, size_t argc);
 
 void pcall(State& state, const Closure& callee, size_t argc);
+
+void ret(State& state, Value&& retv);
 
 } // namespace xvm
 

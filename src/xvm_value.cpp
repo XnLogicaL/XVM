@@ -53,7 +53,7 @@ Value::Value(Value&& other)
 // Move-assignment operator, moves values from other object
 Value& Value::operator=(Value&& other) {
     if (this != &other) {
-        reset();
+        impl::__reset(this);
 
         this->type = other.type;
         this->u = other.u;
@@ -66,57 +66,7 @@ Value& Value::operator=(Value&& other) {
 }
 
 Value::~XVM_NIL {
-    reset();
-}
-
-// Return a clone of the Value based on its type
-XVM_NODISCARD Value Value::clone() const {
-    switch (type) {
-    case Int:
-        return Value(u.i);
-    case Float:
-        return Value(u.f);
-    case Bool:
-        return Value(u.b);
-    case String:
-        return Value(new struct String(*u.str));
-    case Array:
-        return Value(new struct Array(*u.arr));
-    case Dict:
-        return Value(new struct Dict(*u.dict));
-    case Function:
-        return Value(new Closure(*u.clsr));
-    default:
-        break;
-    }
-
-    return XVM_NIL;
-}
-
-void Value::reset() {
-    switch (type) {
-    case String:
-        delete u.str;
-        u.str = NULL;
-        break;
-    case Array:
-        delete u.arr;
-        u.arr = NULL;
-        break;
-    case Dict:
-        delete u.dict;
-        u.dict = NULL;
-        break;
-    case Function:
-        delete u.clsr;
-        u.clsr = NULL;
-        break;
-    default:
-        break;
-    }
-
-    type = Nil;
-    u = {};
+    impl::__reset(this);
 }
 
 } // namespace xvm

@@ -49,20 +49,6 @@ struct String {
      */
     String(const char* str);
     ~String();
-
-    /**
-     * @brief Gets a single-character string at the specified position.
-     * @param position Index of the character to retrieve.
-     * @return A new `String` containing just that character.
-     */
-    String get(size_t position);
-
-    /**
-     * @brief Replaces the character at the given index with the first character of another string.
-     * @param position Index of the character to replace.
-     * @param value A string whose first character will be used as the replacement.
-     */
-    void set(size_t position, const String& value);
 };
 
 } // namespace xvm

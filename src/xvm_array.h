@@ -25,7 +25,7 @@ namespace xvm {
 /**
  * @brief Default starting capacity for all arrays.
  */
-inline constexpr size_t ARRAY_INITAL_CAPACITY = 64;
+inline constexpr size_t kArrayCapacity = 64;
 
 /**
  * @struct Array
@@ -37,37 +37,15 @@ inline constexpr size_t ARRAY_INITAL_CAPACITY = 64;
  * delegated to the `CSize` helper, which tracks the logical size and performs bounds checks.
  */
 struct Array {
-    Value* data = NULL;                      ///< Pointer to array data buffer.
-    size_t capacity = ARRAY_INITAL_CAPACITY; ///< Allocated capacity.
-    CSize  csize = {};                       ///< Logical size and resizing helper.
+    Value* data = NULL;               ///< Pointer to array data buffer.
+    size_t capacity = kArrayCapacity; ///< Allocated capacity.
+    CSize  csize = {};                ///< Logical size and resizing helper.
 
     XVM_IMPLCOPY(Array);
     XVM_IMPLMOVE(Array);
 
     Array();
     ~Array();
-
-    /**
-     * @brief Returns the number of initialized elements in the array.
-     * @return Current logical size of the array.
-     */
-    size_t size() const;
-
-    /**
-     * @brief Returns the value at the given index.
-     * If out of bounds, returns a reference to Nil.
-     * @param position Index to fetch.
-     * @return Reference to the value at the given index, or Nil.
-     */
-    Value& get(size_t position);
-
-    /**
-     * @brief Assigns a value to the element at the given index.
-     * If the index exceeds the current size, the array is resized.
-     * @param position Index to assign to.
-     * @param value The value to assign.
-     */
-    void set(size_t position, Value&& value);
 };
 
 } // namespace xvm

@@ -7,11 +7,11 @@
 namespace xvm {
 
 Array::Array(const Array& other)
-  : data(new Value[ARRAY_INITAL_CAPACITY]),
+  : data(new Value[kArrayCapacity]),
     capacity(other.capacity),
     csize(other.csize) {
     for (size_t i = 0; i < capacity; i++) {
-        data[i] = other.data[i].clone();
+        data[i] = impl::__clone(other.data + i);
     }
 }
 
@@ -33,7 +33,7 @@ Array& Array::operator=(const Array& other) {
         csize = other.csize;
 
         for (size_t i = 0; i < capacity; i++) {
-            data[i] = other.data[i].clone();
+            data[i] = impl::__clone(other.data + i);
         }
     }
 
@@ -57,7 +57,7 @@ Array& Array::operator=(Array&& other) {
 }
 
 Array::Array()
-  : data(new Value[ARRAY_INITAL_CAPACITY]) {}
+  : data(new Value[kArrayCapacity]) {}
 
 Array::~Array() {
     delete[] data;
@@ -65,14 +65,6 @@ Array::~Array() {
 
 size_t Array::size() const {
     return impl::__getArraySize(this);
-}
-
-Value& Array::get(size_t position) {
-    return *impl::__getArrayField(this, position);
-}
-
-void Array::set(size_t position, Value&& value) {
-    impl::__setArrayField(this, position, std::move(value));
 }
 
 } // namespace xvm
