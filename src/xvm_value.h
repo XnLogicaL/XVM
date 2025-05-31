@@ -81,7 +81,9 @@ struct alignas(8) Value {
     ~Value();
 
     // Constructors
-    explicit Value();             ///< Default constructor (Nil).
+    explicit Value(); ///< Default constructor (Nil).
+
+    // Primitive constructors
     explicit Value(bool b);       ///< Constructs a Bool.
     explicit Value(int x);        ///< Constructs an Int.
     explicit Value(float x);      ///< Constructs a Float.
@@ -89,6 +91,9 @@ struct alignas(8) Value {
     explicit Value(Array* ptr);   ///< Constructs an Array.
     explicit Value(Dict* ptr);    ///< Constructs a Dict.
     explicit Value(Closure* ptr); ///< Constructs a Closure.
+
+    // Constant constructors
+    explicit Value(const char* str);
 };
 
 } // namespace xvm

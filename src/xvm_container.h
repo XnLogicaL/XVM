@@ -8,6 +8,7 @@
 #define XVM_CONTAINER_H
 
 #include "xvm_common.h"
+#include "xvm_value.h"
 #include "xvm_instruction.h"
 
 /**
@@ -46,10 +47,8 @@ struct OperandsArray {
  * @struct BytecodeHolder
  * @brief Lightweight container that is used to store instructions and their data.
  */
-struct BytecodeHolder {
-    std::vector<Instruction>     insns; ///< Instruction array
-    std::vector<InstructionData> data;  ///< Instruction data array
-
+class BytecodeHolder {
+  public:
     /**
      * @brief Pushes a raw instruction and its raw data into their respective containers
      * @param insn Instruction
@@ -64,6 +63,31 @@ struct BytecodeHolder {
      * @param comment Comment of the instruction
      */
     void pushInstruction(Opcode op, OperandsArray&& ops, std::string&& comment);
+
+    const Instruction*     getCode() const;
+    const InstructionData& getData(size_t pos) const;
+
+    size_t getCodeSize() const;
+
+  private:
+    std::vector<Instruction>     insns; ///< Instruction array
+    std::vector<InstructionData> data;  ///< Instruction data array
+};
+
+class ConstantHolder {
+  public:
+    void pushConstant(Value&& val);
+
+    template<typename... Args>
+        requires std::is_constructible_v<Value, Args...>
+    void pushConstant(Args&&... args) {
+        return pushConstant(Value(args...));
+    }
+
+    const Value& getConstant(size_t pos) const;
+
+  private:
+    std::vector<Value> constants;
 };
 
 } // namespace xvm

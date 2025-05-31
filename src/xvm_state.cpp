@@ -12,8 +12,8 @@ using enum Opcode;
 static size_t countLabels(BytecodeHolder& holder) {
     size_t lcount = 0;
 
-    for (const Instruction& insn : holder.insns) {
-        if (insn.op == LBL)
+    for (const auto* ptr = holder.getCode(); ptr < holder.getCode() + holder.getCodeSize(); ptr++) {
+        if (ptr->op == LBL)
             lcount++;
     }
 
@@ -23,12 +23,13 @@ static size_t countLabels(BytecodeHolder& holder) {
 static void loadLabels(const State* state) {
     size_t lindex = 0;
 
-    const Instruction* pcbase = state->holder.insns.data();
-
-    for (size_t counter = 0; const Instruction& insn : state->holder.insns) {
-        if (insn.op == LBL)
-            state->lat.data[lindex++] = pcbase + counter;
-        ++counter;
+    const BytecodeHolder& holder = state->bc_holder;
+    const Instruction*    pcbase = state->bc_holder.getCode();
+    for (const auto* ptr = holder.getCode(); ptr < holder.getCode() + holder.getCodeSize(); ptr++) {
+        if (ptr->op == LBL) {
+            size_t off = ptr - holder.getCode();
+            state->lat.data[off] = ptr;
+        }
     }
 }
 
@@ -36,8 +37,8 @@ static void loadMainFunction(State* state) {
     Function fun;
     fun.id = "main";
     fun.line = 0;
-    fun.code = state->holder.insns.data();
-    fun.size = state->holder.insns.size();
+    fun.code = state->bc_holder.getCode();
+    fun.size = state->bc_holder.getCodeSize();
 
     Callable c;
     c.type = CallableKind::Function;
@@ -48,11 +49,12 @@ static void loadMainFunction(State* state) {
     state->main = Value(cl);
 }
 
-State::State(BytecodeHolder& holder, StkRegFile& regs)
-  : lat(countLabels(holder)),
+State::State(ConstantHolder& k_holder, BytecodeHolder& bc_holder, StkRegFile& regs)
+  : lat(countLabels(bc_holder)),
     genv(new Dict),
     stk_regf(regs),
-    holder(holder) {
+    k_holder(k_holder),
+    bc_holder(bc_holder) {
 
     stk_top = stk.data;
     stk_base = stk.data;

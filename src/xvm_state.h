@@ -82,7 +82,8 @@ using SpillRegFile = RegFile<kHeapRegCount>;
  */
 // clang-format off
 struct alignas(64) State {
-    const BytecodeHolder& holder;                       ///< Bytecode array
+    const BytecodeHolder& bc_holder;                    ///< Bytecode array
+    const ConstantHolder& k_holder;                     ///< Constant array
 
     StkRegFile& stk_regf;                               ///< Stack register file
 
@@ -113,7 +114,7 @@ struct alignas(64) State {
     // therefore are not default constructible.
     State() = delete;
 
-    State(BytecodeHolder& holder, StkRegFile& file);
+    State(ConstantHolder& k_holder, BytecodeHolder& bc_holder, StkRegFile& file);
     ~State();
 };
 // clang-format on

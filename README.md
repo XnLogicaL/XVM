@@ -13,10 +13,10 @@ int main() {
     xvm::BytecodeHolder bc_holder;
 
     // Name of the global print function
-    k_holder.pushConstant(xvm::Value("print"));
+    k_holder.pushConstant("print");
 
     // Print message
-    k_holder.pushConstant(xvm::Value("Hello, world!"));
+    k_holder.pushConstant("Hello, world!");
 
     // Load "print" into register 0
     bc_holder.pushInstruction(LOADK, {0, 0});

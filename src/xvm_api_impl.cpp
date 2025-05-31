@@ -13,7 +13,7 @@ using enum Opcode;
 
 const InstructionData& __getAddressData(const State* state, const Instruction* const pc) {
     size_t offset = state->pc - pc;
-    return state->holder.data.at(offset);
+    return state->bc_holder.getData(offset);
 }
 
 static std::string nativeId(NativeFn fn) {
@@ -111,8 +111,8 @@ bool __ehandle(State* state) {
 }
 
 Value __getConstant(const State* state, size_t index) {
-    // TODO
-    return XVM_NIL;
+    const Value& k = state->k_holder.getConstant(index);
+    return __clone(&k);
 }
 
 std::string __type(const Value* val) {

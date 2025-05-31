@@ -42,6 +42,10 @@ Value::Value(Closure* ptr)
   : type(Function),
     u({.clsr = ptr}) {}
 
+Value::Value(const char* str)
+  : type(String),
+    u({.str = new struct String(str)}) {}
+
 // Move constructor, transfer ownership based on type
 Value::Value(Value&& other)
   : type(other.type),
@@ -65,7 +69,7 @@ Value& Value::operator=(Value&& other) {
     return *this;
 }
 
-Value::~XVM_NIL {
+Value::~Value() {
     impl::__reset(this);
 }
 

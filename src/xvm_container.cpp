@@ -13,7 +13,34 @@ void BytecodeHolder::pushInstructionRaw(Instruction&& insn, InstructionData&& da
 void BytecodeHolder::pushInstruction(Opcode op, OperandsArray&& ops, std::string&& comment) {
     Instruction     insn{op, ops.data[0], ops.data[1], ops.data[2]};
     InstructionData data{comment};
-    pushInstructionRaw(std::move(insn), std::move(data));
+
+    this->insns.push_back(std::move(insn));
+    this->data.push_back(std::move(data));
+}
+
+const Instruction* BytecodeHolder::getCode() const {
+    return insns.data();
+}
+
+const InstructionData& BytecodeHolder::getData(size_t pos) const {
+    return data.at(pos);
+}
+
+size_t BytecodeHolder::getCodeSize() const {
+    return insns.size();
+}
+
+void ConstantHolder::pushConstant(Value&& val) {
+    constants.push_back(std::move(val));
+}
+
+const Value& ConstantHolder::getConstant(size_t pos) const {
+    static Value nil = XVM_NIL;
+
+    if (pos >= constants.size())
+        return nil;
+
+    return constants.at(pos);
 }
 
 } // namespace xvm
