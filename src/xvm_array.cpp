@@ -11,7 +11,7 @@ Array::Array( const Array& other )
     cap( other.cap ),
     csize( other.csize ) {
   for ( size_t i = 0; i < cap; i++ ) {
-    data[i] = impl::__clone( other.data + i );
+    data[i] = impl::__cloneValue( other.data + i );
   }
 }
 
@@ -33,7 +33,7 @@ Array& Array::operator=( const Array& other ) {
     csize = other.csize;
 
     for ( size_t i = 0; i < cap; i++ ) {
-      data[i] = impl::__clone( other.data + i );
+      data[i] = impl::__cloneValue( other.data + i );
     }
   }
 

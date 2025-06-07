@@ -14,7 +14,7 @@ Dict::Dict( const Dict& other )
     HNode& src = other.data[i];
     HNode* dst = &data[i];
     dst->key = src.key;
-    dst->value = impl::__clone( &src.value );
+    dst->value = impl::__cloneValue( &src.value );
   }
 }
 
@@ -37,7 +37,7 @@ Dict& Dict::operator=( const Dict& other ) {
       Dict::HNode& src = other.data[i];
       Dict::HNode* dst = &data[i];
       dst->key = src.key;
-      dst->value = impl::__clone( &src.value );
+      dst->value = impl::__cloneValue( &src.value );
     }
   }
 

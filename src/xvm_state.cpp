@@ -13,8 +13,8 @@ static void loadMainFunction( State* state ) {
   Function fun;
   fun.id = "main";
   fun.line = 0;
-  fun.code = state->bc_holder.data();
-  fun.size = state->bc_holder.size();
+  fun.code = state->bcHolder.data();
+  fun.size = state->bcHolder.size();
 
   Callable c;
   c.type = CallableKind::Function;
@@ -26,19 +26,19 @@ static void loadMainFunction( State* state ) {
 }
 
 State::State(
-  const std::vector<Value>& k_holder,
-  const std::vector<Instruction>& bc_holder,
-  const std::vector<InstructionData>& bc_info_holder
+  const std::vector<Value>& kHolder,
+  const std::vector<Instruction>& bcHolder,
+  const std::vector<InstructionData>& bcInfoHolder
 )
-  : genv( new Dict ),
-    k_holder( k_holder ),
-    bc_holder( bc_holder ),
-    bc_info_holder( bc_info_holder ) {
+  : globalEnv( new Dict ),
+    kHolder( kHolder ),
+    bcHolder( bcHolder ),
+    bcInfoHolder( bcInfoHolder ) {
 
-  stk_top = stk.data;
-  stk_base = stk.data;
+  stackTop = stack.data;
+  stackBase = stack.data;
 
-  ci_top = cis.data;
+  callInfoTop = callInfoStack.data;
 
   loadBaseLib( this );
   loadMainFunction( this );
@@ -48,7 +48,7 @@ State::State(
 }
 
 State::~State() {
-  delete genv;
+  delete globalEnv;
 }
 
 } // namespace xvm

@@ -22,15 +22,15 @@ void setRegister( State& state, uint16_t reg, Value&& val ) {
 }
 
 void push( State& state, Value&& val ) {
-  CallInfo* ci = state.ci_top - 1;
-  XVM_ASSERT( state.cis.data - ci >= kMaxLocalCount, "stack overflow" );
-  impl::__push( &state, std::move( val ) );
+  CallInfo* ci = state.callInfoTop - 1;
+  XVM_ASSERT( state.callInfoStack.data - ci >= kMaxLocalCount, "stack overflow" );
+  impl::__pushStack( &state, std::move( val ) );
 }
 
 void drop( State& state ) {
-  CallInfo* ci = state.ci_top - 1;
-  XVM_ASSERT( ci == state.cis.data, "stack underflow" );
-  impl::__drop( &state );
+  CallInfo* ci = state.callInfoTop - 1;
+  XVM_ASSERT( ci == state.callInfoStack.data, "stack underflow" );
+  impl::__dropStack( &state );
 }
 
 void setLocal( State& state, size_t position, Value&& value ) {
@@ -46,19 +46,19 @@ const Value& getLocal( const State& state, size_t position ) {
 }
 
 Value& getArgument( State& state, size_t offset ) {
-  return *( state.stk_base + offset - 1 );
+  return *( state.stackBase + offset - 1 );
 }
 
 const Value& getArgument( const State& state, size_t offset ) {
-  return *( state.stk_base + offset - 1 );
+  return *( state.stackBase + offset - 1 );
 }
 
 Value& getGlobal( State& state, const char* name ) {
-  return state.genv->get( name );
+  return state.globalEnv->get( name );
 }
 
 const Value& getGlobal( const State& state, const char* name ) {
-  return state.genv->get( name );
+  return state.globalEnv->get( name );
 }
 
 } // namespace xvm

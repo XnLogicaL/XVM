@@ -41,7 +41,7 @@
   }
 
 #define VM_CHECK_RETURN()                                                                          \
-  if XVM_UNLIKELY ( state->ci_top == state->cis.data ) {                                           \
+  if XVM_UNLIKELY ( state->callInfoTop == state->callInfoStack.data ) {                            \
     goto exit;                                                                                     \
   }
 
@@ -295,7 +295,7 @@ dispatch:
       uint16_t rsrc = state->pc->b;
       Value* src_val = __getRegister( state, rsrc );
 
-      __setRegister( state, rdst, __clone( src_val ) );
+      __setRegister( state, rdst, __cloneValue( src_val ) );
       VM_NEXT();
     }
 
@@ -333,7 +333,7 @@ dispatch:
 
       const Value& kval = __getConstant( state, idx );
 
-      __setRegister( state, ra, __clone( &kval ) );
+      __setRegister( state, ra, __cloneValue( &kval ) );
       VM_NEXT();
     }
 
@@ -401,7 +401,7 @@ dispatch:
       const std::string& comment = data.comment;
 
       size_t idlen = comment.size();
-      char* idbuf = state->salloc.allocBytes( idlen + 1 /*for nullbyte*/ );
+      char* idbuf = state->stringAtor.allocBytes( idlen + 1 /*for nullbyte*/ );
       std::strcpy( idbuf, comment.c_str() );
 
       Function f;
@@ -429,9 +429,9 @@ dispatch:
       uint16_t ra = state->pc->a;
       uint16_t ib = state->pc->b;
 
-      UpValue* upv = __getClosureUpv( ( state->ci_top - 1 )->closure, ib );
+      UpValue* upv = __getClosureUpv( ( state->callInfoTop - 1 )->closure, ib );
 
-      __setRegister( state, ra, __clone( upv->value ) );
+      __setRegister( state, ra, __cloneValue( upv->value ) );
       VM_NEXT();
     }
 
@@ -441,7 +441,7 @@ dispatch:
 
       Value* val = __getRegister( state, ra );
 
-      __setClosureUpv( ( state->ci_top - 1 )->closure, upv_id, val );
+      __setClosureUpv( ( state->callInfoTop - 1 )->closure, upv_id, val );
       VM_NEXT();
     }
 
@@ -449,7 +449,7 @@ dispatch:
       uint16_t ra = state->pc->a;
       Value* val = __getRegister( state, ra );
 
-      __push( state, std::move( *val ) );
+      __pushStack( state, std::move( *val ) );
       VM_NEXT();
     }
 
@@ -457,39 +457,39 @@ dispatch:
       uint16_t const_idx = state->pc->a;
       Value constant = __getConstant( state, const_idx );
 
-      __push( state, std::move( constant ) );
+      __pushStack( state, std::move( constant ) );
       VM_NEXT();
     }
 
     VM_CASE( PUSHNIL ) {
-      __push( state, XVM_NIL );
+      __pushStack( state, XVM_NIL );
       VM_NEXT();
     }
 
     VM_CASE( PUSHI ) {
       int imm = ( (uint32_t)state->pc->b << 16 ) | state->pc->a;
-      __push( state, Value( imm ) );
+      __pushStack( state, Value( imm ) );
       VM_NEXT();
     }
 
     VM_CASE( PUSHF ) {
       float imm = ( (uint32_t)state->pc->b << 16 ) | state->pc->a;
-      __push( state, Value( imm ) );
+      __pushStack( state, Value( imm ) );
       VM_NEXT();
     }
 
     VM_CASE( PUSHBT ) {
-      __push( state, Value( true ) );
+      __pushStack( state, Value( true ) );
       VM_NEXT();
     }
 
     VM_CASE( PUSHBF ) {
-      __push( state, Value( false ) );
+      __pushStack( state, Value( false ) );
       VM_NEXT();
     }
 
     VM_CASE( DROP ) {
-      __drop( state );
+      __dropStack( state );
       VM_NEXT();
     }
 
@@ -498,7 +498,7 @@ dispatch:
       uint16_t off = state->pc->b;
       Value* val = __getLocal( state, off );
 
-      __setRegister( state, ra, __clone( val ) );
+      __setRegister( state, ra, __cloneValue( val ) );
       VM_NEXT();
     }
 
@@ -515,9 +515,9 @@ dispatch:
       uint16_t ra = state->pc->a;
       uint16_t off = state->pc->b;
 
-      StkId val = state->stk_base - off - 1;
+      Value* val = state->stackBase - off - 1;
 
-      __setRegister( state, ra, __clone( val ) );
+      __setRegister( state, ra, __cloneValue( val ) );
       VM_NEXT();
     }
 
@@ -528,7 +528,7 @@ dispatch:
       Value* key = __getRegister( state, rb );
       Value* global = __getGlobal( state, key->u.str->data );
 
-      __setRegister( state, ra, __clone( global ) );
+      __setRegister( state, ra, __cloneValue( global ) );
       VM_NEXT();
     }
 
@@ -561,7 +561,7 @@ dispatch:
         VM_NEXT();
       }
 
-      bool result = __compare( lhs, rhs );
+      bool result = __compareValue( lhs, rhs );
       __setRegister( state, ra, Value( result ) );
 
       VM_NEXT();
@@ -585,7 +585,7 @@ dispatch:
         VM_NEXT();
       }
 
-      bool result = __compareDeep( lhs, rhs );
+      bool result = __deepCompareValue( lhs, rhs );
       __setRegister( state, ra, Value( result ) );
 
       VM_NEXT();
@@ -609,7 +609,7 @@ dispatch:
         VM_NEXT();
       }
 
-      bool result = __compare( lhs, rhs );
+      bool result = __compareValue( lhs, rhs );
       __setRegister( state, ra, Value( result ) );
 
       VM_NEXT();
@@ -813,7 +813,7 @@ dispatch:
         Value* lhs = __getRegister( state, cond_lhs );
         Value* rhs = __getRegister( state, cond_rhs );
 
-        if XVM_UNLIKELY ( lhs == rhs || __compare( lhs, rhs ) ) {
+        if XVM_UNLIKELY ( lhs == rhs || __compareValue( lhs, rhs ) ) {
           state->pc += offset;
           goto dispatch;
         }
@@ -835,7 +835,7 @@ dispatch:
         Value* lhs = __getRegister( state, cond_lhs );
         Value* rhs = __getRegister( state, cond_rhs );
 
-        if XVM_LIKELY ( lhs != rhs || !__compare( lhs, rhs ) ) {
+        if XVM_LIKELY ( lhs != rhs || !__compareValue( lhs, rhs ) ) {
           state->pc += offset;
           goto dispatch;
         }
@@ -1033,7 +1033,7 @@ dispatch:
     }
 
     VM_CASE( RETNIL ) {
-      __closeClosureUpvs( ( state->ci_top - 1 )->closure );
+      __closeClosureUpvs( ( state->callInfoTop - 1 )->closure );
       __return( state, XVM_NIL );
 
       VM_CHECK_RETURN();
@@ -1073,7 +1073,7 @@ dispatch:
       Value* index = __getRegister( state, key );
       Value* result = __getArrayField( value->u.arr, index->u.i );
 
-      __setRegister( state, ra, __clone( result ) );
+      __setRegister( state, ra, __cloneValue( result ) );
       VM_NEXT();
     }
 
@@ -1109,7 +1109,7 @@ dispatch:
       }
 
       Value* field = __getArrayField( val->u.arr, key );
-      __setRegister( state, ra, __clone( field ) );
+      __setRegister( state, ra, __cloneValue( field ) );
       VM_NEXT();
     }
 

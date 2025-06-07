@@ -19,7 +19,7 @@ Closure::Closure( const Closure& other )
   for ( size_t i = 0; i < count; i++ ) {
     UpValue& upv = this->upvs[i];
     UpValue& other_upv = other.upvs[i];
-    upv.heap = impl::__clone( &other_upv.heap );
+    upv.heap = impl::__cloneValue( &other_upv.heap );
     upv.value = &upv.heap;
     upv.valid = true;
     upv.open = false;
@@ -47,7 +47,7 @@ Closure& Closure::operator=( const Closure& other ) {
     for ( size_t i = 0; i < count; i++ ) {
       UpValue& upv = this->upvs[i];
       UpValue& other_upv = other.upvs[i];
-      upv.heap = impl::__clone( &other_upv.heap );
+      upv.heap = impl::__cloneValue( &other_upv.heap );
       upv.value = &upv.heap;
       upv.valid = true;
       upv.open = false;

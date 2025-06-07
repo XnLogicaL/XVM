@@ -13,7 +13,7 @@ using enum Opcode;
 
 const InstructionData& __getAddressData( const State* state, const Instruction* const pc ) {
   size_t offset = state->pc - pc;
-  return state->bc_info_holder.at( offset );
+  return state->bcInfoHolder.at( offset );
 }
 
 static std::string nativeId( NativeFn fn ) {
@@ -34,12 +34,12 @@ std::string __getFuncSig( const Callable& func ) {
 }
 
 void __ethrow( State* state, const std::string& message ) {
-  const Callable& c = ( state->ci_top - 1 )->closure->callee;
+  const Callable& c = ( state->callInfoTop - 1 )->closure->callee;
   const std::string func = __getFuncSig( c );
 
-  state->einfo->error = true;
-  state->einfo->func = state->salloc.fromArray( func.c_str() );
-  state->einfo->msg = state->salloc.fromArray( message.c_str() );
+  state->errorInfo->error = true;
+  state->errorInfo->func = state->stringAtor.fromArray( func.c_str() );
+  state->errorInfo->msg = state->stringAtor.fromArray( message.c_str() );
 }
 
 void __ethrowf( State* state, const std::string& fmt, std::string args... ) {
@@ -54,23 +54,23 @@ void __ethrowf( State* state, const std::string& fmt, std::string args... ) {
 }
 
 void __eclear( State* state ) {
-  state->einfo->error = false;
+  state->errorInfo->error = false;
 }
 
 bool __echeck( const State* state ) {
-  return state->einfo->error;
+  return state->errorInfo->error;
 }
 
 template<typename T>
 static bool unwindStackUntilGuardFrame( State* state, T callback ) {
-  for ( CallInfo* ci = state->ci_top - 1; ci >= state->cis.data; ci-- ) {
+  for ( CallInfo* ci = state->callInfoTop - 1; ci >= state->callInfoStack.data; ci-- ) {
     callback( ci );
 
     if ( ci->protect ) {
       return true;
     }
 
-    __cipop( state );
+    __popCallInfo( state );
   }
 
   return false;
@@ -81,8 +81,8 @@ bool __ehandle( State* state ) {
 
   bool guardFrameTouched = unwindStackUntilGuardFrame( state, [&sigs, &state]( CallInfo* frame ) {
     if ( frame->protect ) {
-      const auto& einfo = state->einfo;
-      const String* msg = new String( einfo->msg );
+      const auto& errorInfo = state->errorInfo;
+      const String* msg = new String( errorInfo->msg );
 
       __eclear( state );
       __return( state, Value( msg ) );
@@ -97,10 +97,10 @@ bool __ehandle( State* state ) {
     return true;
   }
 
-  const ErrorInfo* einfo = state->einfo.obj;
+  const ErrorInfo* errorInfo = state->errorInfo.obj;
 
   std::ostringstream oss;
-  oss << einfo->func << ": " << einfo->msg << "\n";
+  oss << errorInfo->func << ": " << errorInfo->msg << "\n";
 
   for ( size_t i = 0; const std::string& func : sigs ) {
     oss << " #" << i++ << ' ' << func << "\n";
@@ -111,11 +111,11 @@ bool __ehandle( State* state ) {
 }
 
 Value __getConstant( const State* state, size_t index ) {
-  const Value& k = state->k_holder.at( index );
-  return __clone( &k );
+  const Value& k = state->kHolder.at( index );
+  return __cloneValue( &k );
 }
 
-std::string __type( const Value* val ) {
+std::string __getValueType( const Value* val ) {
   using enum ValueKind;
 
   // clang-format off
@@ -146,17 +146,17 @@ void* __toPointer( const Value* val ) {
   }
 }
 
-void __cipush( State* state, CallInfo&& ci ) {
-  if ( state->stk_top - state->stk.data >= 200 ) {
+void __pushCallInfo( State* state, CallInfo&& ci ) {
+  if ( state->stackTop - state->stack.data >= 200 ) {
     __ethrow( state, "Stack overflow" );
     return;
   }
 
-  *( state->ci_top++ ) = std::move( ci );
+  *( state->callInfoTop++ ) = std::move( ci );
 }
 
-void __cipop( State* state ) {
-  state->ci_top--;
+void __popCallInfo( State* state ) {
+  state->callInfoTop--;
 }
 
 template<const bool IsProtected>
@@ -169,20 +169,20 @@ static void callBase( State* state, Closure* closure ) {
     // Functions are automatically positioned by RET instructions; no need to increment saved
     // program counter.
     cf.pc = state->pc;
-    cf.stk_top = state->stk_top;
+    cf.stackTop = state->stackTop;
 
-    __cipush( state, std::move( cf ) );
+    __pushCallInfo( state, std::move( cf ) );
 
     state->pc = closure->callee.u.fn.code;
-    state->stk_base = state->stk_top;
+    state->stackBase = state->stackTop;
   }
   else if ( closure->callee.type == CallableKind::Native ) {
     // Native functions require manual positioning as they don't increment program counter with
     // a RET instruction or similar.
     cf.pc = state->pc + 1;
-    cf.stk_top = state->stk_top;
+    cf.stackTop = state->stackTop;
 
-    __cipush( state, std::move( cf ) );
+    __pushCallInfo( state, std::move( cf ) );
     __return( state, closure->callee.u.ntv( state ) );
   }
 }
@@ -196,14 +196,14 @@ void __pcall( State* state, Closure* closure ) {
 }
 
 void __return( State* XVM_RESTRICT state, Value&& retv ) {
-  state->pc = ( state->ci_top - 1 )->pc;
-  state->stk_top = ( state->ci_top - 1 )->stk_top + 1;
+  state->pc = ( state->callInfoTop - 1 )->pc;
+  state->stackTop = ( state->callInfoTop - 1 )->stackTop + 1;
 
-  __push( state, std::move( retv ) );
-  __cipop( state );
+  __pushStack( state, std::move( retv ) );
+  __popCallInfo( state );
 }
 
-int __length( const Value* val ) {
+int __getValueLength( const Value* val ) {
   using enum ValueKind;
 
   if ( val->type == String )
@@ -232,7 +232,7 @@ std::string __toString( const Value* val ) {
     return val->u.b ? "true" : "false";
   case Array:
   case Dict:
-    return std::format( "<{}@0x{:x}>", __type( val ), (uintptr_t)__toPointer( val ) );
+    return std::format( "<{}@0x{:x}>", __getValueType( val ), (uintptr_t)__toPointer( val ) );
   case Function: {
     std::string type = "native";
     std::string id = "";
@@ -333,7 +333,7 @@ float __toFloat( const Value* val, bool* fail ) {
   return std::nanf( "" );
 }
 
-bool __compare( const Value* val0, const Value* val1 ) {
+bool __compareValue( const Value* val0, const Value* val1 ) {
   using enum ValueKind;
 
   if ( val0->type != val1->type ) {
@@ -358,7 +358,7 @@ bool __compare( const Value* val0, const Value* val1 ) {
   XVM_UNREACHABLE();
 };
 
-bool __compareDeep( const Value* val0, const Value* val1 ) {
+bool __deepCompareValue( const Value* val0, const Value* val1 ) {
   using enum ValueKind;
 
   if ( val0->type != val1->type ) {
@@ -385,7 +385,7 @@ bool __compareDeep( const Value* val0, const Value* val1 ) {
       Value* val = __getArrayField( val0->u.arr, i );
       Value* other = __getArrayField( val1->u.arr, i );
 
-      if ( !__compareDeep( val, other ) ) {
+      if ( !__deepCompareValue( val, other ) ) {
         return false;
       }
     }
@@ -401,7 +401,7 @@ bool __compareDeep( const Value* val0, const Value* val1 ) {
   return false;
 }
 
-Value __clone( const Value* val ) {
+Value __cloneValue( const Value* val ) {
   using enum ValueKind;
 
   // clang-format off
@@ -419,7 +419,7 @@ Value __clone( const Value* val ) {
   XVM_UNREACHABLE();
 }
 
-void __reset( Value* val ) {
+void __resetValue( Value* val ) {
   using enum ValueKind;
 
   // clang-format off
@@ -479,7 +479,7 @@ void __setClosureUpv( Closure* closure, size_t upv_id, Value* val ) {
   UpValue* upv = __getClosureUpv( closure, upv_id );
   if ( upv != NULL ) {
     if ( upv->value != NULL )
-      *upv->value = __clone( val );
+      *upv->value = __cloneValue( val );
     else
       upv->value = val;
     upv->valid = true;
@@ -495,12 +495,12 @@ static void handleCapture( State* state, Closure* closure, size_t* upvalues ) {
   Value* value;
 
   if ( state->pc->a == 0 ) {
-    value = state->stk_base + idx - 1;
+    value = state->stackBase + idx - 1;
   }
   else { // Upvalue is captured twice; automatically close it.
-    UpValue* upv = &( state->ci_top - 1 )->closure->upvs[idx];
+    UpValue* upv = &( state->callInfoTop - 1 )->closure->upvs[idx];
     if ( upv->valid && upv->open ) {
-      upv->heap = __clone( upv->value );
+      upv->heap = __cloneValue( upv->value );
       upv->value = &upv->heap;
       upv->open = false;
     }
@@ -527,7 +527,7 @@ void __initClosure( State* state, Closure* closure, size_t len ) {
 }
 
 static void closeUpvalue( UpValue* upv ) {
-  upv->heap = __clone( upv->value );
+  upv->heap = __cloneValue( upv->value );
   upv->value = &upv->heap;
   upv->open = false;
 }
@@ -703,57 +703,57 @@ String* __concatString( String* left, String* right ) {
   return new String( buf.data );
 }
 
-void __push( State* state, Value&& val ) {
-  *( state->stk_top++ ) = std::move( val );
+void __pushStack( State* state, Value&& val ) {
+  *( state->stackTop++ ) = std::move( val );
 }
 
-void __drop( State* state ) {
-  state->stk_top--;
-  __reset( state->stk_top );
+void __dropStack( State* state ) {
+  state->stackTop--;
+  __resetValue( state->stackTop );
 }
 
 Value* __getGlobal( State* state, const char* name ) {
-  return __getDictField( state->genv, name );
+  return __getDictField( state->globalEnv, name );
 }
 
 const Value* __getGlobal( const State* state, const char* name ) {
-  return __getDictField( state->genv, name );
+  return __getDictField( state->globalEnv, name );
 }
 
 void __setGlobal( State* state, const char* name, Value&& val ) {
-  __setDictField( state->genv, name, std::move( val ) );
+  __setDictField( state->globalEnv, name, std::move( val ) );
 }
 
-StkId __getLocal( State* state, size_t offset ) {
-  return state->stk_base + offset - 1;
+Value* __getLocal( State* state, size_t offset ) {
+  return state->stackBase + offset - 1;
 }
 
-const StkId __getLocal( const State* state, size_t offset ) {
-  return state->stk_base + offset + 1;
+const Value* __getLocal( const State* state, size_t offset ) {
+  return state->stackBase + offset + 1;
 }
 
-StkId __getArgument( State* state, size_t offset ) {
-  return state->stk_base - offset;
+Value* __getArgument( State* state, size_t offset ) {
+  return state->stackBase - offset;
 }
 
-const StkId __getArgument( const State* state, size_t offset ) {
-  return state->stk_base - offset;
+const Value* __getArgument( const State* state, size_t offset ) {
+  return state->stackBase - offset;
 }
 
 void __setLocal( State* XVM_RESTRICT state, size_t offset, Value&& val ) {
-  *( state->stk_base + offset - 1 ) = std::move( val );
+  *( state->stackBase + offset - 1 ) = std::move( val );
 }
 
 void __setRegister( State* state, uint16_t reg, Value&& val ) {
-  state->regs.data[reg] = std::move( val );
+  state->registers.data[reg] = std::move( val );
 }
 
 Value* __getRegister( State* state, uint16_t reg ) {
-  return &state->regs.data[reg];
+  return &state->registers.data[reg];
 }
 
 const Value* __getRegister( const State* state, uint16_t reg ) {
-  return &state->regs.data[reg];
+  return &state->registers.data[reg];
 }
 
 } // namespace impl

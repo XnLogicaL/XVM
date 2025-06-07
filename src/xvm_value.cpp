@@ -57,7 +57,7 @@ Value::Value( Value&& other )
 // Move-assignment operator, moves values from other object
 Value& Value::operator=( Value&& other ) {
   if ( this != &other ) {
-    impl::__reset( this );
+    impl::__resetValue( this );
 
     this->type = other.type;
     this->u = other.u;
@@ -70,7 +70,7 @@ Value& Value::operator=( Value&& other ) {
 }
 
 Value::~Value() {
-  impl::__reset( this );
+  impl::__resetValue( this );
 }
 
 } // namespace xvm

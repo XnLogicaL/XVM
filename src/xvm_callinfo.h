@@ -38,7 +38,7 @@ namespace xvm {
 struct CallInfo {
   bool protect = false;    ///< Protect callframe from errors
   Closure* closure = NULL; ///< Function closure being invoked.
-  Value* stk_top = NULL;   ///< Stack top when function was called
+  Value* stackTop = NULL;  ///< Stack top when function was called
 
   const Instruction* pc = NULL; ///< Program counter when function was called
 };
