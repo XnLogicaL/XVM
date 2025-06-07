@@ -14,6 +14,7 @@
 
 #include "xvm_common.h"
 #include "xvm_instruction.h"
+#include "xvm_allocator.h"
 #include "xvm_value.h"
 
 /**
@@ -98,25 +99,10 @@ struct Callable {
  * A Closure is created when a function expression references non-local variables.
  */
 struct Closure {
-  Callable callee = {}; ///< Underlying callable (function or native).
-  UpValue* upvs = NULL; ///< Array of upvalue pointers.
-  size_t count = 0;     ///< Number of captured upvalues.
+  Callable callee;
+  TempBuf<UpValue> upvs;
 
-  XVM_IMPLCOPY( Closure );
-  XVM_IMPLMOVE( Closure );
-
-  Closure();
-
-  /**
-   * @brief Constructs a closure from a callable (usually a function).
-   * @param callable The callable to close over.
-   */
-  Closure( Callable&& callable );
-
-  /**
-   * @brief Destructor that frees upvalue array.
-   */
-  ~Closure();
+  Closure( Callable&& callable, size_t upvCount = 0 );
 };
 
 } // namespace xvm

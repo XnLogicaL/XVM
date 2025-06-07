@@ -437,31 +437,10 @@ void __resetValue( Value* val ) {
   val->type = Nil;
 }
 
-// Automatically resizes UpValue vector of closure by XVM_UPV_RESIZE_FACTOR.
-void __resizeClosureUpvs( Closure* closure ) {
-  uint32_t current_size = closure->count;
-  uint32_t new_size = current_size == 0 ? 8 : ( current_size * 2 );
-  UpValue* new_location = new UpValue[new_size];
-
-  // Check if upvalues are initialized
-  if ( current_size != 0 ) {
-    for ( UpValue* ptr = closure->upvs; ptr < closure->upvs + current_size; ptr++ ) {
-      uint32_t offset = ptr - closure->upvs;
-      new_location[offset] = std::move( *ptr );
-    }
-
-    delete[] closure->upvs;
-  }
-
-  // Update closure
-  closure->upvs = new_location;
-  closure->count = new_size;
-}
-
 // Checks if a given index is within the bounds of the UpValue vector of the closure.
 // Used for resizing.
 bool __rangeCheckClosureUpvs( Closure* closure, size_t index ) {
-  return closure->count >= index;
+  return closure->upvs.size >= index;
 }
 
 // Attempts to retrieve UpValue at index <upv_id>.
@@ -471,7 +450,7 @@ UpValue* __getClosureUpv( Closure* closure, size_t upv_id ) {
     return NULL;
   }
 
-  return &closure->upvs[upv_id];
+  return &closure->upvs.data[upv_id];
 }
 
 // Dynamically reassigns UpValue at index <upv_id> the value <val>.
@@ -498,7 +477,7 @@ static void handleCapture( State* state, Closure* closure, size_t* upvalues ) {
     value = state->stackBase + idx - 1;
   }
   else { // Upvalue is captured twice; automatically close it.
-    UpValue* upv = &( state->callInfoTop - 1 )->closure->upvs[idx];
+    UpValue* upv = &( state->callInfoTop - 1 )->closure->upvs.data[idx];
     if ( upv->valid && upv->open ) {
       upv->heap = __cloneValue( upv->value );
       upv->value = &upv->heap;
@@ -507,7 +486,7 @@ static void handleCapture( State* state, Closure* closure, size_t* upvalues ) {
     value = upv->value;
   }
 
-  closure->upvs[( *upvalues )++] = {
+  closure->upvs.data[( *upvalues )++] = {
     .open = true,
     .valid = true,
     .value = value,
@@ -534,12 +513,7 @@ static void closeUpvalue( UpValue* upv ) {
 
 // Moves upvalues of the current closure into the heap, "closing" them.
 void __closeClosureUpvs( const Closure* closure ) {
-  // C Function replica compliance
-  if ( closure->upvs == NULL ) {
-    return;
-  }
-
-  for ( UpValue* upv = closure->upvs; upv < closure->upvs + closure->count; upv++ ) {
+  for ( UpValue* upv = closure->upvs.data; upv < closure->upvs.data + closure->upvs.size; upv++ ) {
     if ( upv->valid && upv->open ) {
       closeUpvalue( upv );
     }
