@@ -65,15 +65,15 @@ struct alignas(64) State {
 
     Dict* genv = NULL;                                  ///< Global environment
 
-    TempBuf<Value> regs{kRegCount};
     TempObj<ErrorInfo> einfo;                           ///< Error info
+    TempBuf<Value> regs{kRegCount};
     TempBuf<Value> stk{kMaxLocalCount};                 ///< Stack base
     TempBuf<CallInfo> cis{kMaxCiCount};                 ///< Call info stack
 
     StkId stk_top = NULL;                               ///< Top of the stack
     StkId stk_base = NULL;                              ///< Base of the current function
-    CiStkId ci_top = NULL;                              ///< Top of the callinfo stack
-    const Instruction* pc = NULL;                       ///< Program counter
+    CiStkId ci_top = NULL;                              ///< Top of the callinfo stack                                                        
+    Instruction const* pc = NULL;                       ///< Program counter
 
     Value main = XVM_NIL;                               ///< Main function slot
 

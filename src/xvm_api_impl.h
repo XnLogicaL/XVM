@@ -360,15 +360,6 @@ size_t __getArraySize(Array* array);
 String* __concatString(String* left, String* right);
 
 /**
- * @brief Returns a pointer to a label instruction by index.
- *
- * @param state The runtime state.
- * @param index Index of label.
- * @return Instruction* Pointer to instruction or NULL.
- */
-const Instruction* __getLabelAddress(const State* state, size_t index);
-
-/**
  * @brief Pushes a value onto the VM stack.
  *
  * @param state The runtime state.

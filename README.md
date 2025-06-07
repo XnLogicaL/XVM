@@ -27,13 +27,9 @@ XVM features the following data types as built-in values:
 - Dictionary
 - Function/closure (native functions included)
 
-## Runtime label addressing
-
-XVM features a label address table that can be used to address labels during runtime. Labels are "declared" using the special `LBL` opcode, which is completely identical to a NOP instruction.
-
 ## CISC-like bytecode instruction set
 
-XVM features a quite sizable instruction set with 16-bit addressable opcodes. It has a lot of combination opcodes like `LJMPIFGTEQ` (jump to label if greater than or equal to) and `IADD` (add integer to value in register).
+XVM features a quite sizable instruction set with 16-bit addressable opcodes. It has a lot of combination opcodes like `JMPIFGTEQ` (jump to address if greater than or equal to) and `IADD` (add integer to value in register).
 
 # Examples
 
