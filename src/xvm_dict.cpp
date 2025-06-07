@@ -8,9 +8,9 @@ namespace xvm {
 
 Dict::Dict(const Dict& other)
   : data(new Dict::HNode[kDictCapacity]),
-    capacity(other.capacity),
+    cap(other.cap),
     csize(other.csize) {
-    for (size_t i = 0; i < capacity; ++i) {
+    for (size_t i = 0; i < cap; ++i) {
         HNode& src = other.data[i];
         HNode* dst = &data[i];
         dst->key = src.key;
@@ -20,20 +20,20 @@ Dict::Dict(const Dict& other)
 
 Dict::Dict(Dict&& other)
   : data(other.data),
-    capacity(other.capacity),
+    cap(other.cap),
     csize(other.csize) {
     other.data = NULL;
-    other.capacity = 0;
+    other.cap = 0;
     other.csize = {};
 }
 
 Dict& Dict::operator=(const Dict& other) {
     if (this != &other) {
-        data = new HNode[other.capacity];
-        capacity = other.capacity;
+        data = new HNode[other.cap];
+        cap = other.cap;
         csize = other.csize;
 
-        for (size_t i = 0; i < capacity; ++i) {
+        for (size_t i = 0; i < cap; ++i) {
             Dict::HNode& src = other.data[i];
             Dict::HNode* dst = &data[i];
             dst->key = src.key;
@@ -47,11 +47,11 @@ Dict& Dict::operator=(const Dict& other) {
 Dict& Dict::operator=(Dict&& other) {
     if (this != &other) {
         data = other.data;
-        capacity = other.capacity;
+        cap = other.cap;
         csize = other.csize;
 
         other.data = NULL;
-        other.capacity = 0;
+        other.cap = 0;
         other.csize = {};
     }
 

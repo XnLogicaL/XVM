@@ -12,7 +12,6 @@
 #define XVM_ARRAY_H
 
 #include "xvm_common.h"
-#include "xvm_csize.h"
 #include "xvm_value.h"
 
 /**
@@ -37,9 +36,10 @@ inline constexpr size_t kArrayCapacity = 64;
  * delegated to the `CSize` helper, which tracks the logical size and performs bounds checks.
  */
 struct Array {
-    Value* data = NULL;               ///< Pointer to array data buffer.
-    size_t capacity = kArrayCapacity; ///< Allocated capacity.
-    CSize  csize = {};                ///< Logical size and resizing helper.
+    Value* data = NULL;          ///< Pointer to array data buffer.
+    size_t cap = kArrayCapacity; ///< Allocated capacity.
+    size_t csize;
+    bool   cvalid;
 
     XVM_IMPLCOPY(Array);
     XVM_IMPLMOVE(Array);

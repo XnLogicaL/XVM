@@ -49,7 +49,7 @@
 #elif defined(_MSC_VER)
 #define XVMC CMSVC
 #else
-#error "Unknown compiler"
+#error "Unknown and/or unsupported compiler"
 #endif
 
 #if XVMC == CGCC
@@ -66,35 +66,31 @@
 #endif
 
 // Version information. Should match with git commit version.
-#define XVM_VERSION "1.0.1"
+#define XVM_VERSION "0.1.1"
 
 #if XVMC == CMSVC
 #define XVM_RESTRICT      __restrict
-#define XVM_NOMANGLE      extern "C"
-#define XVM_NODISCARD     [[nodiscard]]
 #define XVM_NORETURN      __declspec(noreturn)
 #define XVM_NOINLINE      __declspec(noinline)
 #define XVM_FORCEINLINE   __forceinline
-#define XVM_OPTIMIZE      __forceinline // MSVC doesn't have 'hot' attribute
 #define XVM_UNREACHABLE() __assume(0)
 #define XVM_FUNCSIG       __FUNCSIG__
 #define XVM_LIKELY(x)     (x) // No branch prediction hints in MSVC
 #define XVM_UNLIKELY(x)   (x)
 #else // GCC / Clang
 #define XVM_RESTRICT      __restrict__
-#define XVM_NOMANGLE      extern "C"
-#define XVM_NODISCARD     [[nodiscard]]
 #define XVM_NORETURN      __attribute__((noreturn))
 #define XVM_NOINLINE      __attribute__((noinline))
-#define XVM_FORCEINLINE   inline __attribute__((always_inline))
-#define XVM_OPTIMIZE      inline __attribute__((always_inline, hot))
+#define XVM_FORCEINLINE   __attribute__((always_inline))
 #define XVM_UNREACHABLE() __builtin_unreachable()
 #define XVM_FUNCSIG       __PRETTY_FUNCTION__
 #define XVM_LIKELY(a)     (__builtin_expect(!!(a), 1))
 #define XVM_UNLIKELY(a)   (__builtin_expect(!!(a), 0))
 #endif
 
-#define XVM_GLOBAL inline
+#define XVM_NOMANGLE  extern "C"
+#define XVM_NODISCARD [[nodiscard]]
+#define XVM_GLOBAL    inline
 
 /**
  * Makes the target class or struct uncopyable in terms of copy semantics.
@@ -145,7 +141,7 @@
                   << "location: " << __FILE__ << ":" << __LINE__ << "\nmessage: " << message       \
                   << "\n";                                                                         \
         if (XVM_HASSTACKTRACE) {                                                                   \
-            std::cerr << "cstk:\n" << XVM_STACKTRACE << '\n';                                      \
+            std::cerr << "callstack:\n" << XVM_STACKTRACE << '\n';                                 \
         }                                                                                          \
         std::abort();                                                                              \
     }

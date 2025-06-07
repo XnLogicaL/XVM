@@ -33,7 +33,7 @@ XVM features a label address table that can be used to address labels during run
 
 ## CISC-like bytecode instruction set
 
-XVM features a quite sizable instruction set with 16-bit addressable opcodes. It has a lot of combination opcodes like `JLIFGTEQ` (jump to label if greater than or equal to) and `IADD` (add integer to value in register).
+XVM features a quite sizable instruction set with 16-bit addressable opcodes. It has a lot of combination opcodes like `LJMPIFGTEQ` (jump to label if greater than or equal to) and `IADD` (add integer to value in register).
 
 # Examples
 

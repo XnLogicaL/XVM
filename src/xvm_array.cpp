@@ -8,18 +8,18 @@ namespace xvm {
 
 Array::Array(const Array& other)
   : data(new Value[kArrayCapacity]),
-    capacity(other.capacity),
+    cap(other.cap),
     csize(other.csize) {
-    for (size_t i = 0; i < capacity; i++) {
+    for (size_t i = 0; i < cap; i++) {
         data[i] = impl::__clone(other.data + i);
     }
 }
 
 Array::Array(Array&& other)
   : data(other.data),
-    capacity(other.capacity),
+    cap(other.cap),
     csize(other.csize) {
-    other.capacity = 0;
+    other.cap = 0;
     other.data = NULL;
     other.csize = {};
 }
@@ -28,11 +28,11 @@ Array& Array::operator=(const Array& other) {
     if (this != &other) {
         delete[] data;
 
-        data = new Value[capacity];
-        capacity = other.capacity;
+        data = new Value[cap];
+        cap = other.cap;
         csize = other.csize;
 
-        for (size_t i = 0; i < capacity; i++) {
+        for (size_t i = 0; i < cap; i++) {
             data[i] = impl::__clone(other.data + i);
         }
     }
@@ -45,10 +45,10 @@ Array& Array::operator=(Array&& other) {
         delete[] data;
 
         data = other.data;
-        capacity = other.capacity;
+        cap = other.cap;
         csize = other.csize;
 
-        other.capacity = 0;
+        other.cap = 0;
         other.csize = {};
         other.data = NULL;
     }
@@ -61,10 +61,6 @@ Array::Array()
 
 Array::~Array() {
     delete[] data;
-}
-
-size_t Array::size() const {
-    return impl::__getArraySize(this);
 }
 
 } // namespace xvm

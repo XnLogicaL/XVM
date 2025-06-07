@@ -13,7 +13,6 @@
 #define XVM_TDICT_H
 
 #include "xvm_common.h"
-#include "xvm_csize.h"
 #include "xvm_value.h"
 
 /**
@@ -45,9 +44,10 @@ struct Dict {
         Value       value; ///< Corresponding value.
     };
 
-    HNode* data = NULL;              ///< Pointer to the hash table buffer.
-    size_t capacity = kDictCapacity; ///< Total capacity of the table.
-    CSize  csize = {};               ///< Tracks logical size and handles resizing.
+    HNode* data = NULL;         ///< Pointer to the hash table buffer.
+    size_t cap = kDictCapacity; ///< Total capacity of the table.
+    size_t csize;
+    bool   cvalid;
 
     XVM_IMPLCOPY(Dict); ///< Enables copy constructor and assignment.
     XVM_IMPLMOVE(Dict); ///< Enables move constructor and assignment.

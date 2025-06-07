@@ -292,7 +292,7 @@ size_t __hashDictKey(const Dict* dict, const char* key);
  * @param key Null-terminated key.
  * @param val Value to insert.
  */
-void __setDictField(const Dict* dict, const char* key, Value val);
+void __setDictField(Dict* dict, const char* key, Value val);
 
 /**
  * @brief Retrieves the value associated with a key.
@@ -309,7 +309,7 @@ Value* __getDictField(const Dict* dict, const char* key);
  * @param dict Pointer to dictionary.
  * @return size_t Number of key-value pairs.
  */
-size_t __getDictSize(const Dict* dict);
+size_t __getDictSize(Dict* dict);
 
 /**
  * @brief Checks if an index is valid in the array.
@@ -355,7 +355,7 @@ Value* __getArrayField(const Array* array, size_t index);
  * @param array Pointer to array.
  * @return size_t Array size.
  */
-size_t __getArraySize(const Array* array);
+size_t __getArraySize(Array* array);
 
 String* __concatString(String* left, String* right);
 

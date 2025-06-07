@@ -29,12 +29,6 @@ namespace xvm {
 /// Total amount of addressable registers (2^16)
 constexpr XVM_GLOBAL size_t kRegCount = 0xFFFF + 1;
 
-/// Amount of stack registers (2^8)
-constexpr XVM_GLOBAL size_t kStkRegCount = 0x00FF + 1;
-
-/// Amount of heap registers
-constexpr XVM_GLOBAL size_t kHeapRegCount = kRegCount - kStkRegCount;
-
 constexpr XVM_GLOBAL size_t kMaxLocalCount = 200;
 
 constexpr XVM_GLOBAL size_t kMaxCiCount = 200;
@@ -43,33 +37,17 @@ constexpr XVM_GLOBAL size_t kStrAllocPoolSize = 256 * 1024;
 
 using StkId = Value*;
 using CiStkId = CallInfo*;
-using InsnId = const Instruction*;
 
 /**
  * @struct ErrorInfo
  * @brief Represents an active runtime error during VM execution.
  */
 struct ErrorInfo {
-    bool error = false;
+  bool error = false;
 
-    const char* func; ///< Function signature of where the error occurred.
-    const char* msg;  ///< Human-readable error message.
+  const char* func; ///< Function signature of where the error occurred.
+  const char* msg;  ///< Human-readable error message.
 };
-
-/**
- * @brief Generic register array wrapper with fixed size and alignment.
- * @tparam Size The number of registers in the holder.
- */
-template<const size_t Size>
-struct alignas(64) RegFile {
-    Value registers[Size];
-};
-
-/// Type alias for stack-based register block.
-using StkRegFile = RegFile<kStkRegCount>;
-
-/// Type alias for heap/spill register block.
-using SpillRegFile = RegFile<kHeapRegCount>;
 
 /**
  * @class State
@@ -85,21 +63,17 @@ struct alignas(64) State {
     const std::vector<Instruction>& bc_holder;          ///< Bytecode array
     const std::vector<InstructionData>& bc_info_holder;    
 
-    StkRegFile& stk_regf;                               ///< Stack register file
-
     Dict* genv = NULL;                                  ///< Global environment
 
-    TempBuf<InsnId> lat;                                ///< Label address table                                      
+    TempBuf<Value> regs{kRegCount};
     TempObj<ErrorInfo> einfo;                           ///< Error info
-    TempObj<SpillRegFile> regf;                         ///< Register file
-                                                        
     TempBuf<Value> stk{kMaxLocalCount};                 ///< Stack base
     TempBuf<CallInfo> cis{kMaxCiCount};                 ///< Call info stack
 
     StkId stk_top = NULL;                               ///< Top of the stack
     StkId stk_base = NULL;                              ///< Base of the current function
     CiStkId ci_top = NULL;                              ///< Top of the callinfo stack
-    InsnId pc = NULL;                                   ///< Program counter
+    const Instruction* pc = NULL;                       ///< Program counter
 
     Value main = XVM_NIL;                               ///< Main function slot
 
@@ -117,8 +91,7 @@ struct alignas(64) State {
     explicit State(
         const std::vector<Value>& k_holder,
         const std::vector<Instruction>& bc_holder,
-        const std::vector<InstructionData>& bc_info_holder,
-        StkRegFile& file
+        const std::vector<InstructionData>& bc_info_holder
     );
 
     ~State();
