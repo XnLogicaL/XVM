@@ -10,144 +10,148 @@ namespace xvm {
 
 template<typename T>
 class TempBuf {
-    // TempBuf relies on the fact that T is default constructible to ensure an uninitialized buffer
-    // can exist.
-    static_assert(std::is_default_constructible_v<T>, "T must be default constructible");
+  // TempBuf relies on the fact that T is default constructible to ensure an uninitialized buffer
+  // can exist.
+  static_assert( std::is_default_constructible_v<T>, "T must be default constructible" );
 
-  public:
-    size_t size = 0;
-    T*     data = NULL;
+public:
+  size_t size = 0;
+  T* const data = NULL;
 
-    explicit TempBuf(size_t size)
-      : size(size),
-        data(new T[size]) {}
+  explicit TempBuf( size_t size )
+    : size( size ),
+      data( new T[size] ) {}
 
-    inline ~TempBuf() {
-        delete[] data;
-    }
+  inline ~TempBuf() {
+    delete[] data;
+  }
 
-    // clang-format off
-    explicit TempBuf(const TempBuf<T>& other) requires std::is_copy_constructible_v<T>;
-    explicit TempBuf(TempBuf<T>&& other)      requires std::is_move_constructible_v<T>;
+  explicit TempBuf( const TempBuf<T>& other )
+    requires std::is_copy_constructible_v<T>;
+  explicit TempBuf( TempBuf<T>&& other )
+    requires std::is_move_constructible_v<T>;
 
-    TempBuf<T>& operator=(const TempBuf<T>& other) requires std::is_copy_assignable_v<T>;
-    TempBuf<T>& operator=(TempBuf<T>&& other)      requires std::is_move_assignable_v<T>;
-    // clang-format on
+  TempBuf<T>& operator=( const TempBuf<T>& other )
+    requires std::is_copy_assignable_v<T>;
+  TempBuf<T>& operator=( TempBuf<T>&& other )
+    requires std::is_move_assignable_v<T>;
 };
 
 template<typename T>
 class TempObj {
-  public:
-    T* const obj;
+public:
+  T* const obj;
 
-    explicit TempObj()
-        requires std::is_default_constructible_v<T>
-    : obj(new T) {}
+  explicit TempObj()
+    requires std::is_default_constructible_v<T>
+  : obj( new T ) {}
 
-    template<typename... Args>
-        requires std::is_constructible_v<T, Args...>
-    explicit TempObj(Args&&... args)
-      : obj(new T(std::forward<Args>(args)...)) {}
+  template<typename... Args>
+    requires std::is_constructible_v<T, Args...>
+  explicit TempObj( Args&&... args )
+    : obj( new T( std::forward<Args>( args )... ) ) {}
 
-    inline ~TempObj() {
-        delete obj;
-    }
+  inline ~TempObj() {
+    delete obj;
+  }
 
-    // clang-format off
-    explicit TempObj(const TempObj<T>& other) requires std::is_copy_constructible_v<T>;
-    explicit TempObj(TempObj<T>&& other)      requires std::is_move_constructible_v<T>;
+  explicit TempObj( const TempObj<T>& other )
+    requires std::is_copy_constructible_v<T>;
+  explicit TempObj( TempObj<T>&& other )
+    requires std::is_move_constructible_v<T>;
 
-    TempObj<T>& operator=(const TempObj<T>& other) requires std::is_copy_assignable_v<T>;
-    TempObj<T>& operator=(TempObj<T>&& other)      requires std::is_move_assignable_v<T>;
-    // clang-format on
+  TempObj<T>& operator=( const TempObj<T>& other )
+    requires std::is_copy_assignable_v<T>;
+  TempObj<T>& operator=( TempObj<T>&& other )
+    requires std::is_move_assignable_v<T>;
 
-    T*       operator->();
-    const T* operator->() const;
+  T* operator->();
+  const T* operator->() const;
 };
 
 template<typename T>
 class Allocator {
-  public:
-    virtual T* alloc();
+public:
+  virtual T* alloc();
 };
 
 template<typename T>
 class LinearAllocator : public Allocator<T> {
-    // We do static assertions instead of concept constraints to avoid repetition in function
-    // template definitions.
-    static_assert(std::is_default_constructible_v<T>, "T must be default constructible");
-    static_assert(std::is_move_assignable_v<T>, "T must be move assignable");
-    static_assert(std::is_destructible_v<T>, "T must be destructible");
+  // We do static assertions instead of concept constraints to avoid repetition in function
+  // template definitions.
+  static_assert( std::is_default_constructible_v<T>, "T must be default constructible" );
+  static_assert( std::is_move_assignable_v<T>, "T must be move assignable" );
+  static_assert( std::is_destructible_v<T>, "T must be destructible" );
 
-  public:
-    using Dtor = std::function<void()>;
+public:
+  using Dtor = std::function<void()>;
 
-    explicit LinearAllocator(size_t size)
-      : cap(size),
-        buf(new T[size]),
-        off(buf) {}
+  explicit LinearAllocator( size_t size )
+    : cap( size ),
+      buf( new T[size] ),
+      off( buf ) {}
 
-    ~LinearAllocator();
+  ~LinearAllocator();
 
-    // Allocators should only be passed around as references, as they are typically tied to state
-    // objects.
-    XVM_NOCOPY(LinearAllocator);
-    XVM_NOMOVE(LinearAllocator);
+  // Allocators should only be passed around as references, as they are typically tied to state
+  // objects.
+  XVM_NOCOPY( LinearAllocator );
+  XVM_NOMOVE( LinearAllocator );
 
-    void resize();
-    T*   alloc() override;
+  void resize();
+  T* alloc() override;
 
-    template<typename... Args>
-        requires std::is_constructible_v<T, Args...>
-    inline T* emplace(Args&&... args) {
-        T* const allocated_memory = alloc();
-        T* const obj = new (allocated_memory) T{std::forward<Args>(args)...};
+  template<typename... Args>
+    requires std::is_constructible_v<T, Args...>
+  inline T* emplace( Args&&... args ) {
+    T* const allocated_memory = alloc();
+    T* const obj = new ( allocated_memory ) T{ std::forward<Args>( args )... };
 
-        registerDtor(obj);
-        return obj;
-    }
+    registerDtor( obj );
+    return obj;
+  }
 
-  private:
-    void registerDtor(T* const obj);
+private:
+  void registerDtor( T* const obj );
 
-  private:
-    T*     buf;
-    T*     off;
-    size_t cap;
+private:
+  T* buf;
+  T* off;
+  size_t cap;
 
-    std::unordered_map<void*, Dtor> dtorMap;
+  std::unordered_map<void*, Dtor> dtorMap;
 };
 
 template<typename T = char>
 class ByteAllocator : public Allocator<T> {
-    // If I have to explain why we need this, I don't think you should be looking at this code right
-    // now.
-    static_assert(sizeof(T) == 1, "T must be byte-sized");
+  // If I have to explain why we need this, I don't think you should be looking at this code right
+  // now.
+  static_assert( sizeof( T ) == 1, "T must be byte-sized" );
 
-  public:
-    explicit ByteAllocator(size_t size)
-      : cap(size),
-        buf(new std::byte[size]),
-        off(buf) {}
+public:
+  explicit ByteAllocator( size_t size )
+    : cap( size ),
+      buf( new std::byte[size] ),
+      off( buf ) {}
 
-    ~ByteAllocator();
+  ~ByteAllocator();
 
-    // Allocators should only be passed around as references, as they are typically tied to state
-    // objects.
-    XVM_NOCOPY(ByteAllocator);
-    XVM_NOMOVE(ByteAllocator);
+  // Allocators should only be passed around as references, as they are typically tied to state
+  // objects.
+  XVM_NOCOPY( ByteAllocator );
+  XVM_NOMOVE( ByteAllocator );
 
-    void resize();
-    T*   alloc() override;
-    T*   allocBytes(size_t bytes);
+  void resize();
+  T* alloc() override;
+  T* allocBytes( size_t bytes );
 
-    // Assumes null-terminated array
-    T* fromArray(const T* array);
+  // Assumes null-terminated array
+  T* fromArray( const T* array );
 
-  private:
-    T*     buf;
-    T*     off;
-    size_t cap;
+private:
+  T* buf;
+  T* off;
+  size_t cap;
 };
 
 } // namespace xvm

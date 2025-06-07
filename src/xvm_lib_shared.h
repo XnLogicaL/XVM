@@ -9,8 +9,8 @@
 
 namespace xvm {
 
-Callable makeNativeCallable(NativeFn ptr, size_t arity);
-void     declareCoreFunction(State* state, const char* id, NativeFn ptr, size_t arity);
+Callable makeNativeCallable( NativeFn ptr, size_t arity );
+void declareCoreFunction( State* state, const char* id, NativeFn ptr, size_t arity );
 
 } // namespace xvm
 

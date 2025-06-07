@@ -9,63 +9,63 @@
 
 namespace xvm {
 
-void error(State& state, std::string msg);
+void error( State& state, std::string msg );
 
-std::string type(const Value& val);
+std::string type( const Value& val );
 
-std::string toString(const Value& val);
+std::string toString( const Value& val );
 
-bool toBool(const Value& val);
+bool toBool( const Value& val );
 
-int toInt(const Value& val);
+int toInt( const Value& val );
 
-float toFloat(const Value& val);
+float toFloat( const Value& val );
 
-bool compare(const Value& val);
+bool compare( const Value& val );
 
-bool deepCompare(const Value& val);
+bool deepCompare( const Value& val );
 
-Value clone(const Value& val);
+Value clone( const Value& val );
 
-void reset(Value& val);
+void reset( Value& val );
 
-int length(const Value& val);
+int length( const Value& val );
 
-void execute(State& state);
+void execute( State& state );
 
-void executeStep(State& state, std::optional<Instruction> insn = std::nullopt);
+void executeStep( State& state, std::optional<Instruction> insn = std::nullopt );
 
-Value& getRegister(State& state, uint16_t reg);
+Value& getRegister( State& state, uint16_t reg );
 
-const Value& getRegister(const State& state, uint16_t reg);
+const Value& getRegister( const State& state, uint16_t reg );
 
-void setRegister(State& state, uint16_t reg, Value&& value);
+void setRegister( State& state, uint16_t reg, Value&& value );
 
-void push(State& state, Value&& value);
+void push( State& state, Value&& value );
 
-void drop(State& state);
+void drop( State& state );
 
-void setLocal(State& state, size_t position, Value&& value);
+void setLocal( State& state, size_t position, Value&& value );
 
-Value& getLocal(State& state, size_t position);
+Value& getLocal( State& state, size_t position );
 
-const Value& getLocal(const State& state, size_t position);
+const Value& getLocal( const State& state, size_t position );
 
-Value& getArgument(State& state, size_t offset);
+Value& getArgument( State& state, size_t offset );
 
-const Value& getArgument(const State& state, size_t offset);
+const Value& getArgument( const State& state, size_t offset );
 
-Value& getGlobal(State& state, const char* name);
+Value& getGlobal( State& state, const char* name );
 
-const Value& getGlobal(const State& state, const char* name);
+const Value& getGlobal( const State& state, const char* name );
 
-void setGlobal(State& state, const char* name, const Value& value);
+void setGlobal( State& state, const char* name, const Value& value );
 
-void call(State& state, const Closure& callee, size_t argc);
+void call( State& state, const Closure& callee, size_t argc );
 
-void pcall(State& state, const Closure& callee, size_t argc);
+void pcall( State& state, const Closure& callee, size_t argc );
 
-void ret(State& state, Value&& retv);
+void ret( State& state, Value&& retv );
 
 } // namespace xvm
 

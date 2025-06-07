@@ -68,92 +68,92 @@ TempObj<T>::TempObj(TempObj<T>&& other)
 
 template<typename T>
 LinearAllocator<T>::~LinearAllocator() {
-    for (auto& dtor : dtorMap) {
-        dtor.second();
-    }
+  for ( auto& dtor : dtorMap ) {
+    dtor.second();
+  }
 
-    delete[] buf;
+  delete[] buf;
 }
 
 template<typename T>
 void LinearAllocator<T>::resize() {
-    T* oldbuf = buf;
-    cap *= 2;
-    buf = new T[cap];
+  T* oldbuf = buf;
+  cap *= 2;
+  buf = new T[cap];
 
-    for (size_t i = 0; i < cap; ++i) {
-        buf[i] = std::move(oldbuf[i]);
-    }
+  for ( size_t i = 0; i < cap; ++i ) {
+    buf[i] = std::move( oldbuf[i] );
+  }
 
-    delete[] oldbuf;
+  delete[] oldbuf;
 }
 
 template<typename T>
 T* LinearAllocator<T>::alloc() {
-    size_t remBytes = cap - static_cast<size_t>(off - buf);
-    if (remBytes == 0) {
-        resize();
-    }
+  size_t remBytes = cap - static_cast<size_t>( off - buf );
+  if ( remBytes == 0 ) {
+    resize();
+  }
 
-    T* aligned = std::align(alignof(T), sizeof(T), off, remBytes);
-    if (aligned == NULL) {
-        throw std::bad_alloc();
-    }
+  T* aligned = std::align( alignof( T ), sizeof( T ), off, remBytes );
+  if ( aligned == NULL ) {
+    throw std::bad_alloc();
+  }
 
-    off = aligned + sizeof(T);
-    return aligned;
+  off = aligned + sizeof( T );
+  return aligned;
 }
 
 template<typename T>
-void LinearAllocator<T>::registerDtor(T* const obj) {
-    dtorMap[obj] = [obj]() { obj->~T(); };
+void LinearAllocator<T>::registerDtor( T* const obj ) {
+  dtorMap[obj] = [obj]() { obj->~T(); };
 }
 
 template<typename T>
 ByteAllocator<T>::~ByteAllocator() {
-    delete[] buf;
+  delete[] buf;
 }
 
 template<typename T>
 void ByteAllocator<T>::resize() {
-    auto*  oldbuf = buf;
-    size_t oldcap = cap;
+  auto* oldbuf = buf;
+  size_t oldcap = cap;
 
-    cap *= 2;
-    buf = new std::byte[cap];
+  cap *= 2;
+  buf = new std::byte[cap];
 
-    std::memcpy(buf, oldbuf, oldcap);
-    delete[] oldbuf;
+  std::memcpy( buf, oldbuf, oldcap );
+  delete[] oldbuf;
 }
 
 template<typename T>
 T* ByteAllocator<T>::alloc() {
-    return off++;
+  return off++;
 }
 
 template<typename T>
-T* ByteAllocator<T>::allocBytes(size_t bytes) {
-    void* oldoff = off;
-    off += bytes;
-    return oldoff;
+T* ByteAllocator<T>::allocBytes( size_t bytes ) {
+  void* oldoff = off;
+  off += bytes;
+  return oldoff;
 }
 
 template<typename T>
-T* ByteAllocator<T>::fromArray(const T* array) {
-    size_t   len = 0;
-    const T* ptr = array;
+T* ByteAllocator<T>::fromArray( const T* array ) {
+  size_t len = 0;
+  const T* ptr = array;
 
-    while (*ptr != T{} /* zero value */) {
-        ++ptr;
-        ++len;
-    }
+  while ( *ptr != T{} /* zero value */ ) {
+    ++ptr;
+    ++len;
+  }
 
-    T* alloca = allocBytes(len + 1);
+  T* alloca = allocBytes( len + 1 );
 
-    std::memcpy(alloca, array, len);
-    std::memset(alloca + len, 0, 1);
+  std::memcpy( alloca, array, len );
+  std::memset( alloca + len, 0, 1 );
 
-    return alloca;
+  return alloca;
 }
 
 } // namespace xvm

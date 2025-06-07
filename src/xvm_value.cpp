@@ -12,65 +12,65 @@ namespace xvm {
 
 using enum ValueKind;
 
-Value::XVM_NIL : type(Nil) {}
+Value::XVM_NIL : type( Nil ) {}
 
-Value::Value(bool b)
-  : type(Bool),
-    u({.b = b}) {}
+Value::Value( bool b )
+  : type( Bool ),
+    u( { .b = b } ) {}
 
-Value::Value(int x)
-  : type(Int),
-    u({.i = x}) {}
+Value::Value( int x )
+  : type( Int ),
+    u( { .i = x } ) {}
 
-Value::Value(float x)
-  : type(Float),
-    u({.f = x}) {}
+Value::Value( float x )
+  : type( Float ),
+    u( { .f = x } ) {}
 
-Value::Value(struct String* ptr)
-  : type(String),
-    u({.str = ptr}) {}
+Value::Value( struct String* ptr )
+  : type( String ),
+    u( { .str = ptr } ) {}
 
-Value::Value(struct Array* ptr)
-  : type(Array),
-    u({.arr = ptr}) {}
+Value::Value( struct Array* ptr )
+  : type( Array ),
+    u( { .arr = ptr } ) {}
 
-Value::Value(struct Dict* ptr)
-  : type(Dict),
-    u({.dict = ptr}) {}
+Value::Value( struct Dict* ptr )
+  : type( Dict ),
+    u( { .dict = ptr } ) {}
 
-Value::Value(Closure* ptr)
-  : type(Function),
-    u({.clsr = ptr}) {}
+Value::Value( Closure* ptr )
+  : type( Function ),
+    u( { .clsr = ptr } ) {}
 
-Value::Value(const char* str)
-  : type(String),
-    u({.str = new struct String(str)}) {}
+Value::Value( const char* str )
+  : type( String ),
+    u( { .str = new struct String( str ) } ) {}
 
 // Move constructor, transfer ownership based on type
-Value::Value(Value&& other)
-  : type(other.type),
-    u(other.u) {
-    other.type = Nil;
-    other.u = {};
+Value::Value( Value&& other )
+  : type( other.type ),
+    u( other.u ) {
+  other.type = Nil;
+  other.u = {};
 }
 
 // Move-assignment operator, moves values from other object
-Value& Value::operator=(Value&& other) {
-    if (this != &other) {
-        impl::__reset(this);
+Value& Value::operator=( Value&& other ) {
+  if ( this != &other ) {
+    impl::__reset( this );
 
-        this->type = other.type;
-        this->u = other.u;
+    this->type = other.type;
+    this->u = other.u;
 
-        other.type = Nil;
-        other.u = {};
-    }
+    other.type = Nil;
+    other.u = {};
+  }
 
-    return *this;
+  return *this;
 }
 
 Value::~Value() {
-    impl::__reset(this);
+  impl::__reset( this );
 }
 
 } // namespace xvm

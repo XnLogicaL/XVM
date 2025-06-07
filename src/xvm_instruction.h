@@ -36,7 +36,7 @@ inline constexpr size_t OPERAND_INVALID = 0xFFFF;
  * to support source mapping, line numbers, or debugging flags.
  */
 struct InstructionData {
-    std::string comment = ""; ///< Human-readable comment or annotation.
+  std::string comment = ""; ///< Human-readable comment or annotation.
 };
 
 /**
@@ -49,11 +49,11 @@ struct InstructionData {
  *
  * The structure is aligned to 8 bytes to optimize for memory layout and access efficiency.
  */
-struct alignas(8) Instruction {
-    Opcode   op = Opcode::NOP;    ///< Operation code (e.g., ADD, LOAD, CALL).
-    uint16_t a = OPERAND_INVALID; ///< First operand (typically a register or constant index).
-    uint16_t b = OPERAND_INVALID; ///< Second operand.
-    uint16_t c = OPERAND_INVALID; ///< Third operand.
+struct alignas( 8 ) Instruction {
+  Opcode op = Opcode::NOP;      ///< Operation code (e.g., ADD, LOAD, CALL).
+  uint16_t a = OPERAND_INVALID; ///< First operand (typically a register or constant index).
+  uint16_t b = OPERAND_INVALID; ///< Second operand.
+  uint16_t c = OPERAND_INVALID; ///< Third operand.
 };
 
 } // namespace xvm

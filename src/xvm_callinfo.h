@@ -36,11 +36,11 @@ namespace xvm {
  * Copy operations are disabled via `XVM_NOCOPY`, but move semantics are allowed via `XVM_IMPLMOVE`.
  */
 struct CallInfo {
-    bool     protect = false; ///< Protect callframe from errors
-    Closure* closure = NULL;  ///< Function closure being invoked.
-    Value*   stk_top = NULL;  ///< Stack top when function was called
+  bool protect = false;    ///< Protect callframe from errors
+  Closure* closure = NULL; ///< Function closure being invoked.
+  Value* stk_top = NULL;   ///< Stack top when function was called
 
-    const Instruction* pc = NULL; ///< Program counter when function was called
+  const Instruction* pc = NULL; ///< Program counter when function was called
 };
 
 } // namespace xvm

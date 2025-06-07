@@ -20,13 +20,13 @@
  */
 namespace xvm {
 
-char* strdup(const char* str);
-char* strdup(const std::string& str);
+char* strdup( const char* str );
+char* strdup( const std::string& str );
 
-uint32_t strhash(const char* str);
-uint32_t strhash(const std::string& str);
+uint32_t strhash( const char* str );
+uint32_t strhash( const std::string& str );
 
-std::string stresc(const std::string& str);
+std::string stresc( const std::string& str );
 
 /**
  * @struct String
@@ -36,19 +36,19 @@ std::string stresc(const std::string& str);
  * value to accelerate dictionary operations and comparisons.
  */
 struct String {
-    char*    data = NULL; ///< Heap-allocated UTF-8 character data.
-    size_t   size = 0;    ///< Number of bytes in the string (not null-terminated).
-    uint32_t hash = 0;    ///< Cached hash for fast comparisons and dict lookup.
+  char* data = NULL; ///< Heap-allocated UTF-8 character data.
+  size_t size = 0;   ///< Number of bytes in the string (not null-terminated).
+  uint32_t hash = 0; ///< Cached hash for fast comparisons and dict lookup.
 
-    XVM_IMPLCOPY(String);
-    XVM_IMPLMOVE(String);
+  XVM_IMPLCOPY( String );
+  XVM_IMPLMOVE( String );
 
-    /**
-     * @brief Constructs a new `String` from a null-terminated C-string.
-     * @param str The input C-string to copy.
-     */
-    String(const char* str);
-    ~String();
+  /**
+   * @brief Constructs a new `String` from a null-terminated C-string.
+   * @param str The input C-string to copy.
+   */
+  String( const char* str );
+  ~String();
 };
 
 } // namespace xvm

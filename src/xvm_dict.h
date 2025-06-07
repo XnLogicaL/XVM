@@ -35,25 +35,25 @@ inline constexpr size_t kDictCapacity = 64;
  * Keys are raw C strings assumed to be interned or otherwise stable.
  */
 struct Dict {
-    /**
-     * @struct HNode
-     * @brief A single key-value entry within the dictionary hash table.
-     */
-    struct HNode {
-        const char* key;   ///< Null-terminated string key (not owned).
-        Value       value; ///< Corresponding value.
-    };
+  /**
+   * @struct HNode
+   * @brief A single key-value entry within the dictionary hash table.
+   */
+  struct HNode {
+    const char* key; ///< Null-terminated string key (not owned).
+    Value value;     ///< Corresponding value.
+  };
 
-    HNode* data = NULL;         ///< Pointer to the hash table buffer.
-    size_t cap = kDictCapacity; ///< Total capacity of the table.
-    size_t csize;
-    bool   cvalid;
+  HNode* data = NULL;         ///< Pointer to the hash table buffer.
+  size_t cap = kDictCapacity; ///< Total capacity of the table.
+  size_t csize;
+  bool cvalid;
 
-    XVM_IMPLCOPY(Dict); ///< Enables copy constructor and assignment.
-    XVM_IMPLMOVE(Dict); ///< Enables move constructor and assignment.
+  XVM_IMPLCOPY( Dict ); ///< Enables copy constructor and assignment.
+  XVM_IMPLMOVE( Dict ); ///< Enables move constructor and assignment.
 
-    Dict();
-    ~Dict();
+  Dict();
+  ~Dict();
 };
 
 } // namespace xvm

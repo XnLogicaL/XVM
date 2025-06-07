@@ -11,7 +11,7 @@
 
 namespace xvm {
 
-void loadBaseLib(State* state);
+void loadBaseLib( State* state );
 
 }
 

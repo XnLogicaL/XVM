@@ -16,8 +16,8 @@
 
 // MSVC is annoying with uninitialized members
 #if XVMC == CMSVC
-#pragma warning(push)
-#pragma warning(disable : 26495)
+#pragma warning( push )
+#pragma warning( disable : 26495 )
 #endif
 
 #define XVM_NIL Value()
@@ -37,14 +37,14 @@ struct Dict;
 struct Closure;
 
 enum class ValueKind : uint8_t {
-    Nil,      ///< Null or "empty" value.
-    Int,      ///< Integer value.
-    Float,    ///< Floating-point value.
-    Bool,     ///< Boolean value.
-    String,   ///< Pointer to `String`.
-    Function, ///< Pointer to `Closure`.
-    Array,    ///< Pointer to `Array`.
-    Dict      ///< Pointer to `Dict`.
+  Nil,      ///< Null or "empty" value.
+  Int,      ///< Integer value.
+  Float,    ///< Floating-point value.
+  Bool,     ///< Boolean value.
+  String,   ///< Pointer to `String`.
+  Function, ///< Pointer to `Closure`.
+  Array,    ///< Pointer to `Array`.
+  Dict      ///< Pointer to `Dict`.
 };
 
 /**
@@ -54,46 +54,46 @@ enum class ValueKind : uint8_t {
  * This type is used throughout the xvm VM to hold and manipulate values
  * of different types dynamically at runtime.
  */
-struct alignas(8) Value {
-    /**
-     * @enum Tag
-     * @brief Discriminates the active member of the Value union.
-     */
-    ValueKind type;
+struct alignas( 8 ) Value {
+  /**
+   * @enum Tag
+   * @brief Discriminates the active member of the Value union.
+   */
+  ValueKind type;
 
-    /**
-     * @union Un
-     * @brief Holds the actual value for the current tag.
-     */
-    union Un {
-        int      i;    ///< Integer.
-        float    f;    ///< Float.
-        bool     b;    ///< Boolean.
-        String*  str;  ///< Heap string pointer.
-        Array*   arr;  ///< Heap array pointer.
-        Dict*    dict; ///< Heap dictionary pointer.
-        Closure* clsr; ///< Function closure pointer.
-    } u;
+  /**
+   * @union Un
+   * @brief Holds the actual value for the current tag.
+   */
+  union Un {
+    int i;         ///< Integer.
+    float f;       ///< Float.
+    bool b;        ///< Boolean.
+    String* str;   ///< Heap string pointer.
+    Array* arr;    ///< Heap array pointer.
+    Dict* dict;    ///< Heap dictionary pointer.
+    Closure* clsr; ///< Function closure pointer.
+  } u;
 
-    XVM_NOCOPY(Value);
-    XVM_IMPLMOVE(Value);
+  XVM_NOCOPY( Value );
+  XVM_IMPLMOVE( Value );
 
-    ~Value();
+  ~Value();
 
-    // Constructors
-    explicit Value(); ///< Default constructor (Nil).
+  // Constructors
+  explicit Value(); ///< Default constructor (Nil).
 
-    // Primitive constructors
-    explicit Value(bool b);       ///< Constructs a Bool.
-    explicit Value(int x);        ///< Constructs an Int.
-    explicit Value(float x);      ///< Constructs a Float.
-    explicit Value(String* ptr);  ///< Constructs a String.
-    explicit Value(Array* ptr);   ///< Constructs an Array.
-    explicit Value(Dict* ptr);    ///< Constructs a Dict.
-    explicit Value(Closure* ptr); ///< Constructs a Closure.
+  // Primitive constructors
+  explicit Value( bool b );       ///< Constructs a Bool.
+  explicit Value( int x );        ///< Constructs an Int.
+  explicit Value( float x );      ///< Constructs a Float.
+  explicit Value( String* ptr );  ///< Constructs a String.
+  explicit Value( Array* ptr );   ///< Constructs an Array.
+  explicit Value( Dict* ptr );    ///< Constructs a Dict.
+  explicit Value( Closure* ptr ); ///< Constructs a Closure.
 
-    // Constant constructors
-    explicit Value(const char* str);
+  // Constant constructors
+  explicit Value( const char* str );
 };
 
 } // namespace xvm
@@ -101,7 +101,7 @@ struct alignas(8) Value {
 /** @} */
 
 #if XVMC == CMSVC
-#pragma warning(pop)
+#pragma warning( pop )
 #endif
 
 #endif // XVM_OBJECT_H
